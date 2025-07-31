@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/time_post_service.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({Key? key}) : super(key: key);
+  const CreatePostScreen({super.key});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -56,16 +56,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       'price': price,
     });
 
-
     setState(() {
       _isSubmitting = false;
     });
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('게시글이 성공적으로 등록되었습니다.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('게시글이 성공적으로 등록되었습니다.')));
       Navigator.pop(context, true); // 생성 성공 알림 후 이전 화면으로 돌아감
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('게시글 등록에 실패했습니다.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('게시글 등록에 실패했습니다.')));
     }
   }
 
@@ -82,13 +85,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(labelText: '제목'),
-                validator: (value) => (value == null || value.isEmpty) ? '제목을 입력해주세요.' : null,
+                validator:
+                    (value) =>
+                        (value == null || value.isEmpty) ? '제목을 입력해주세요.' : null,
               ),
               TextFormField(
                 controller: _descriptionController,
                 decoration: InputDecoration(labelText: '설명'),
                 maxLines: 3,
-                validator: (value) => (value == null || value.isEmpty) ? '설명을 입력해주세요.' : null,
+                validator:
+                    (value) =>
+                        (value == null || value.isEmpty) ? '설명을 입력해주세요.' : null,
               ),
               Row(
                 children: [
@@ -96,9 +103,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     child: TextFormField(
                       controller: _latitudeController,
                       decoration: InputDecoration(labelText: '위도'),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return '위도를 입력해주세요.';
+                        if (value == null || value.isEmpty)
+                          return '위도를 입력해주세요.';
                         final val = double.tryParse(value);
                         if (val == null) return '유효한 숫자를 입력해주세요.';
                         return null;
@@ -110,9 +120,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     child: TextFormField(
                       controller: _longitudeController,
                       decoration: InputDecoration(labelText: '경도'),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return '경도를 입력해주세요.';
+                        if (value == null || value.isEmpty)
+                          return '경도를 입력해주세요.';
                         final val = double.tryParse(value);
                         if (val == null) return '유효한 숫자를 입력해주세요.';
                         return null;
@@ -150,10 +163,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               SizedBox(height: 20),
               _isSubmitting
                   ? Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                onPressed: _submit,
-                child: Text('등록'),
-              ),
+                  : ElevatedButton(onPressed: _submit, child: Text('등록')),
             ],
           ),
         ),

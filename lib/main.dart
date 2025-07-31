@@ -12,6 +12,8 @@ void main() {
 class MyApp extends StatelessWidget {
   final AuthService _authService = AuthService();
 
+  MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -20,12 +22,14 @@ class MyApp extends StatelessWidget {
       home: FutureBuilder<String?>(
         future: _authService.getToken(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
-          if (snapshot.data != null)
+          }
+          if (snapshot.data != null) {
             return LoginScreen();
-          else
+          } else {
             return LoginScreen();
+          }
         },
       ),
     );

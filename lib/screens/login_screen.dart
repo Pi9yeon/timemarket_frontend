@@ -11,6 +11,8 @@ class LoginScreen extends StatelessWidget {
   final _password = TextEditingController();
   final AuthService _authService = AuthService();
 
+  LoginScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,12 +21,26 @@ class LoginScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(controller: _username, decoration: InputDecoration(labelText: 'Username')),
-            TextField(controller: _email, decoration: InputDecoration(labelText: 'Email')),
-            TextField(controller: _password, decoration: InputDecoration(labelText: 'Password'), obscureText: true),
+            TextField(
+              controller: _username,
+              decoration: InputDecoration(labelText: 'Username'),
+            ),
+            TextField(
+              controller: _email,
+              decoration: InputDecoration(labelText: 'Email'),
+            ),
+            TextField(
+              controller: _password,
+              decoration: InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
             ElevatedButton(
               onPressed: () async {
-                bool success = await _authService.login(_username.text, _email.text, _password.text);
+                bool success = await _authService.login(
+                  _username.text,
+                  _email.text,
+                  _password.text,
+                );
                 if (success) {
                   // 로그인 성공 시 TimePostListScreen 으로 이동
                   Navigator.pushReplacement(
@@ -32,13 +48,19 @@ class LoginScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => TimePostMapScreen()),
                   );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("로그인 실패")));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text("로그인 실패")));
                 }
               },
               child: Text('로그인'),
             ),
             TextButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SignupScreen())),
+              onPressed:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => SignupScreen()),
+                  ),
               child: Text('회원가입'),
             ),
           ],

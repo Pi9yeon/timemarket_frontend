@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
+
   @override
   _SignupScreenState createState() => _SignupScreenState();
 }
@@ -39,8 +41,9 @@ class _SignupScreenState extends State<SignupScreen> {
               child: CircleAvatar(
                 radius: 50,
                 backgroundImage:
-                _profileImage != null ? FileImage(_profileImage!) : null,
-                child: _profileImage == null ? Icon(Icons.person, size: 50) : null,
+                    _profileImage != null ? FileImage(_profileImage!) : null,
+                child:
+                    _profileImage == null ? Icon(Icons.person, size: 50) : null,
               ),
             ),
             SizedBox(height: 16),
@@ -69,8 +72,9 @@ class _SignupScreenState extends State<SignupScreen> {
                 if (success) {
                   Navigator.pop(context); // 로그인 화면으로 돌아가기
                 } else {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text("회원가입 실패")));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text("회원가입 실패")));
                 }
               },
               child: Text('회원가입'),
