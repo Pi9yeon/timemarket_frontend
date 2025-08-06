@@ -3,14 +3,20 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String baseUrl = 'http://localhost:8000/api';
+// 1. const String baseUrl = 'http://localhost:8000/api';
+const String baseUrl = 'http://10.0.2.2:8000/api';
+// 3. const String baseUrl = 'http://172.30.1.50:8000/api';
 
 class AuthService {
   Future<bool> login(String username, String email, String password) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login/'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'nickname': username, 'email': email, 'password': password}),
+      body: jsonEncode({
+        'nickname': username,
+        'email': email,
+        'password': password,
+      }),
     );
 
     if (response.statusCode == 200) {
@@ -24,7 +30,12 @@ class AuthService {
   }
 
   /// 프로필 이미지 포함 회원가입 (profileImage는 null 가능)
-  Future<bool> signup(String username, String email, String password, File? profileImage) async {
+  Future<bool> signup(
+    String username,
+    String email,
+    String password,
+    File? profileImage,
+  ) async {
     var uri = Uri.parse('$baseUrl/auth/signup/');
     var request = http.MultipartRequest('POST', uri);
 
@@ -45,9 +56,28 @@ class AuthService {
       request.files.add(multipartFile);
     }
 
-    var response = await request.send();
+    try {
+      var response = await request.send();
 
-    return response.statusCode == 201;
+      if (response.statusCode == 201) {
+        print('회원가입 성공!');
+        return true;
+      } else {
+        // 📌 백엔드에서 보낸 상세 에러 메시지를 읽어서 출력
+        var responseBody = await response.stream.bytesToString();
+        print('회원가입 실패 (상태 코드: ${response.statusCode}):');
+        print('에러 내용: $responseBody');
+        return false;
+      }
+    } catch (e) {
+      // 📌 네트워크 연결 실패 등의 예외 처리
+      print('회원가입 중 네트워크 오류 발생: $e');
+      return false;
+    }
+
+    // var response = await request.send();
+
+    // return response.statusCode == 201;
   }
 
   Future<void> logout() async {

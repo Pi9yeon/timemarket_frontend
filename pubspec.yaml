@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # flutter_localizations: # 📌 이 라인을 추가
+  #   sdk: flutter
   http: ^0.13.6
   image_picker: ^0.8.7+4
   shared_preferences: ^2.2.2

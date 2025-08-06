@@ -4,7 +4,7 @@ import '../services/user_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final User user;
-  EditProfileScreen(this.user);
+  const EditProfileScreen(this.user, {super.key});
 
   @override
   _EditProfileScreenState createState() => _EditProfileScreenState();
@@ -30,15 +30,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(controller: _username, decoration: InputDecoration(labelText: 'Username')),
-            TextField(controller: _email, decoration: InputDecoration(labelText: 'Email')),
+            TextField(
+              controller: _username,
+              decoration: InputDecoration(labelText: 'Username'),
+            ),
+            TextField(
+              controller: _email,
+              decoration: InputDecoration(labelText: 'Email'),
+            ),
             ElevatedButton(
               onPressed: () async {
-                bool success = await _userService.updateMyInfo(_username.text, _email.text);
+                bool success = await _userService.updateMyInfo(
+                  _username.text,
+                  _email.text,
+                );
                 if (success) {
                   Navigator.pop(context);
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("수정 실패")));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text("수정 실패")));
                 }
               },
               child: Text('수정하기'),

@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 
-const String baseUrl = 'http://localhost:8000/api'; // 실제 주소로 변경
+// 1. const String baseUrl = 'http://localhost:8000/api';
+const String baseUrl = 'http://10.0.2.2:8000/api';
+// 3. const String baseUrl = 'http://172.30.1.50:8000/api';
 
 class TimePostService {
   final AuthService _authService = AuthService();
@@ -16,19 +18,23 @@ class TimePostService {
     final token = await _authService.getToken();
     if (token == null) return null;
 
-    final uri = Uri.parse('$baseUrl/time-posts/')
-        .replace(queryParameters: {
-      'lat': lat.toString(),
-      'lng': lng.toString(),
-      'type': type,
-    });
+    final uri = Uri.parse('$baseUrl/time-posts/').replace(
+      queryParameters: {
+        'lat': lat.toString(),
+        'lng': lng.toString(),
+        'type': type,
+      },
+    );
 
-    final response = await http.get(uri, headers: {
-      'Authorization': 'Bearer $token',
-    });
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body) as List<dynamic>;
+      // 📌 이 부분만 수정
+      final decodedBody = utf8.decode(response.bodyBytes);
+      return jsonDecode(decodedBody) as List<dynamic>;
     }
     return null;
   }
@@ -38,13 +44,17 @@ class TimePostService {
     final token = await _authService.getToken();
     if (token == null) return false;
 
+    // 📌 한글 데이터를 안전하게 인코딩하기 위해 수정
+    // 1. JSON 데이터를 UTF-8 바이트로 인코딩
+    final utf8Body = utf8.encode(jsonEncode(postData));
+
     final response = await http.post(
       Uri.parse('$baseUrl/time-posts/create/'),
       headers: {
         'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8', // 📌 인코딩 명시
       },
-      body: jsonEncode(postData),
+      body: utf8Body, // 📌 인코딩된 바이트 데이터 전송
     );
 
     return response.statusCode == 201;
@@ -57,9 +67,7 @@ class TimePostService {
 
     final response = await http.get(
       Uri.parse('$baseUrl/time-posts/$postId/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
@@ -92,9 +100,7 @@ class TimePostService {
 
     final response = await http.delete(
       Uri.parse('$baseUrl/time-posts/$postId/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     return response.statusCode == 204;
@@ -107,9 +113,7 @@ class TimePostService {
 
     final response = await http.get(
       Uri.parse('$baseUrl/time-posts/board/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {

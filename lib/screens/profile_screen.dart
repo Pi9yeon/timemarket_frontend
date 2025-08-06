@@ -7,12 +7,15 @@ import 'login_screen.dart';
 class ProfileScreen extends StatelessWidget {
   final UserService _userService = UserService();
 
+  ProfileScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<User?>(
       future: _userService.getMyInfo(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData)
+          return Center(child: CircularProgressIndicator());
 
         final user = snapshot.data!;
         return Scaffold(
@@ -23,9 +26,12 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icon(Icons.logout),
                 onPressed: () async {
                   await _userService.authService.logout();
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LoginScreen()));
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => LoginScreen()),
+                  );
                 },
-              )
+              ),
             ],
           ),
           body: Padding(
@@ -38,7 +44,13 @@ class ProfileScreen extends StatelessWidget {
                 Text("Email: ${user.email}"),
                 SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user))),
+                  onPressed:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EditProfileScreen(user),
+                        ),
+                      ),
                   child: Text('정보 수정'),
                 ),
               ],

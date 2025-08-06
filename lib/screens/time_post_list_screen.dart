@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:timemarket_frontend/screens/login_screen.dart';
 import 'package:timemarket_frontend/screens/time_post_map_screen.dart';
 import '../services/time_post_service.dart';
-import '../services/auth_service.dart';  // 추가
+import '../services/auth_service.dart'; // 추가
 import 'create_post_screen.dart';
 import 'edit_post_screen.dart';
 import 'post_detail_screen.dart';
 import '../models/post_model.dart';
 
 class TimePostListScreen extends StatefulWidget {
-  const TimePostListScreen({Key? key}) : super(key: key);
+  const TimePostListScreen({super.key});
 
   @override
   State<TimePostListScreen> createState() => _TimePostListScreenState();
@@ -17,13 +17,13 @@ class TimePostListScreen extends StatefulWidget {
 
 class _TimePostListScreenState extends State<TimePostListScreen> {
   final TimePostService _timePostService = TimePostService();
-  final AuthService _authService = AuthService();  // 추가
+  final AuthService _authService = AuthService(); // 추가
 
   List<dynamic>? _posts;
   bool _loading = true;
-  String _type = 'sale'; // 필요에 따라 'hire' 등 변경
-  double _lat = 37.5;
-  double _lng = 127.0;
+  final String _type = 'sale'; // 필요에 따라 'hire' 등 변경
+  final double _lat = 37.5;
+  final double _lng = 127.0;
 
   @override
   void initState() {
@@ -32,7 +32,11 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
   }
 
   Future<void> _loadPosts() async {
-    final posts = await _timePostService.fetchNearbyPosts(lat: _lat, lng: _lng, type: _type);
+    final posts = await _timePostService.fetchNearbyPosts(
+      lat: _lat,
+      lng: _lng,
+      type: _type,
+    );
     setState(() {
       _posts = posts ?? [];
       _loading = false;
@@ -66,14 +70,13 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
         icon: Icon(Icons.logout),
         tooltip: '로그아웃',
         onPressed: () async {
-          await _authService.logout();  // 로그아웃 처리
+          await _authService.logout(); // 로그아웃 처리
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => LoginScreen()),
           );
         },
       ),
-
     ];
   }
 
@@ -117,12 +120,14 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
                   // 프로필 이미지 or 기본 아이콘
                   CircleAvatar(
                     radius: 28,
-                    backgroundImage: postObj.author.profileImageUrl != null
-                        ? NetworkImage(postObj.author.profileImageUrl!)
-                        : null,
-                    child: postObj.author.profileImageUrl == null
-                        ? Icon(Icons.person, size: 28, color: Colors.grey)
-                        : null,
+                    backgroundImage:
+                        postObj.author.profileImageUrl != null
+                            ? NetworkImage(postObj.author.profileImageUrl!)
+                            : null,
+                    child:
+                        postObj.author.profileImageUrl == null
+                            ? Icon(Icons.person, size: 28, color: Colors.grey)
+                            : null,
                   ),
 
                   SizedBox(width: 12),
@@ -161,7 +166,11 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
                           final updated = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => EditPostScreen(postId: postObj.id, initialData: post),
+                              builder:
+                                  (_) => EditPostScreen(
+                                    postId: postObj.id,
+                                    initialData: post,
+                                  ),
                             ),
                           );
                           if (updated == true) _loadPosts();
@@ -172,22 +181,37 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
                         onPressed: () async {
                           final confirmed = await showDialog<bool>(
                             context: context,
-                            builder: (_) => AlertDialog(
-                              title: Text('삭제 확인'),
-                              content: Text('정말 삭제하시겠습니까?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(context, false), child: Text('취소')),
-                                TextButton(onPressed: () => Navigator.pop(context, true), child: Text('삭제')),
-                              ],
-                            ),
+                            builder:
+                                (_) => AlertDialog(
+                                  title: Text('삭제 확인'),
+                                  content: Text('정말 삭제하시겠습니까?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed:
+                                          () => Navigator.pop(context, false),
+                                      child: Text('취소'),
+                                    ),
+                                    TextButton(
+                                      onPressed:
+                                          () => Navigator.pop(context, true),
+                                      child: Text('삭제'),
+                                    ),
+                                  ],
+                                ),
                           );
                           if (confirmed == true) {
-                            final success = await _timePostService.deletePost(postObj.id);
+                            final success = await _timePostService.deletePost(
+                              postObj.id,
+                            );
                             if (success) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('삭제 완료')));
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text('삭제 완료')));
                               _loadPosts();
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('삭제 실패')));
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text('삭제 실패')));
                             }
                           }
                         },
@@ -198,7 +222,6 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
               ),
             ),
           );
-
         },
       ),
     );

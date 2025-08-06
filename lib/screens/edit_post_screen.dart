@@ -6,7 +6,11 @@ class EditPostScreen extends StatefulWidget {
   final int postId;
   final Map<String, dynamic> initialData;
 
-  const EditPostScreen({Key? key, required this.postId, required this.initialData}) : super(key: key);
+  const EditPostScreen({
+    super.key,
+    required this.postId,
+    required this.initialData,
+  });
 
   @override
   State<EditPostScreen> createState() => _EditPostScreenState();
@@ -21,24 +25,34 @@ class _EditPostScreenState extends State<EditPostScreen> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.initialData['title'] ?? '');
-    _descController = TextEditingController(text: widget.initialData['description'] ?? '');
+    _titleController = TextEditingController(
+      text: widget.initialData['title'] ?? '',
+    );
+    _descController = TextEditingController(
+      text: widget.initialData['description'] ?? '',
+    );
   }
 
   void _submit() async {
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     final success = await _service.updatePost(widget.postId, {
       'title': _titleController.text,
       'description': _descController.text,
     });
 
-    setState(() { _isLoading = false; });
+    setState(() {
+      _isLoading = false;
+    });
 
     if (success) {
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('수정 실패')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('수정 실패')));
     }
   }
 
@@ -50,8 +64,14 @@ class _EditPostScreenState extends State<EditPostScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(controller: _titleController, decoration: InputDecoration(labelText: '제목')),
-            TextField(controller: _descController, decoration: InputDecoration(labelText: '내용')),
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(labelText: '제목'),
+            ),
+            TextField(
+              controller: _descController,
+              decoration: InputDecoration(labelText: '내용'),
+            ),
             SizedBox(height: 20),
             _isLoading
                 ? CircularProgressIndicator()
