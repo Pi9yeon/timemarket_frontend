@@ -1,11 +1,14 @@
+// lib/screens/time_post_map_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../services/time_post_service.dart'; // 위에 제공하신 서비스
-import '../services/auth_service.dart'; // 로그인, 로그아웃 처리 서비스
-import 'time_post_list_screen.dart'; // 게시글 목록 화면
-import 'login_screen.dart'; // 로그인 화면
+import '../services/time_post_service.dart';
+import '../services/auth_service.dart';
+import 'time_post_list_screen.dart';
+import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class TimePostMapScreen extends StatefulWidget {
   const TimePostMapScreen({super.key});
@@ -23,7 +26,7 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
   final String _postType = 'sale'; // 기본: 판매 목록
 
   final LatLng _initialCenter = LatLng(37.5665, 126.9780); // 서울 시청 좌표
-  final double _zoom = 16; // 300% 확대 비슷한 값
+  final double _zoom = 16;
 
   @override
   void initState() {
@@ -32,7 +35,6 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
   }
 
   Future<void> _loadNearbyPosts() async {
-    // 실제로는 GPS 받아와야 하지만 일단 서울 시청 기준으로 호출
     final posts = await _postService.fetchNearbyPosts(
       lat: _initialCenter.latitude,
       lng: _initialCenter.longitude,
@@ -45,7 +47,6 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
         _loading = false;
       });
     } else {
-      // 에러 처리 등 필요
       setState(() {
         _loading = false;
       });
@@ -58,7 +59,6 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
           final lat = post['latitude'] as double;
           final lng = post['longitude'] as double;
 
-          // 위도 경도 범위 체크
           if (lat < -90 || lat > 90) return false;
           if (lng < -180 || lng > 180) return false;
 
@@ -106,10 +106,14 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('시간 거래 지도'),
+        title: const Text(
+          'TimeMarket',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.blueAccent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.list),
+            icon: const Icon(Icons.list, color: Colors.white),
             tooltip: '게시글 목록',
             onPressed: () {
               Navigator.push(
@@ -121,10 +125,21 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.person, color: Colors.white),
+            tooltip: '마이 페이지',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ProfileScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: '로그아웃',
             onPressed: () async {
               await _authService.logout();
+              if (!mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => LoginScreen()),
