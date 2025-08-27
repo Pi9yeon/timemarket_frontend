@@ -1,12 +1,11 @@
 // lib/main.dart
+
 import 'package:flutter/material.dart';
-import 'package:timemarket_frontend/screens/time_post_map_screen.dart';
-import 'screens/login_screen.dart';
-import 'services/auth_service.dart';
-import 'screens/main_screen.dart'; // ✅ 새로 추가된 MainScreen 임포트
+import 'package:timemarket_frontend/screens/login_screen.dart';
+import 'package:timemarket_frontend/services/auth_service.dart';
+import 'screens/time_post_map_screen.dart'; // ✅ 지도 화면을 기본 홈으로 설정
 
 void main() {
-  // ✅ 앱의 시작점인 main 함수가 반드시 있어야 합니다.
   runApp(MyApp());
 }
 
@@ -21,10 +20,10 @@ class MyApp extends StatelessWidget {
       title: 'Time Market',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        appBarTheme: AppBarTheme(
+        // ✅ 앱 전체에 일관된 앱 바 디자인을 적용합니다.
+        appBarTheme: const AppBarTheme(
           backgroundColor: Colors.blueAccent,
           foregroundColor: Colors.white,
-          centerTitle: true,
           titleTextStyle: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -33,15 +32,19 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: FutureBuilder<String?>(
+        // 앱 시작 시 저장된 토큰이 있는지 확인합니다.
         future: _authService.getToken(),
         builder: (context, snapshot) {
+          // 로딩 중일 때 로딩 스피너를 보여줍니다.
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+          // 토큰이 존재하면(로그인 상태) 지도 화면으로 바로 이동합니다.
           if (snapshot.hasData && snapshot.data != null) {
-            return const MainScreen(); // 로그인 성공 시, MainScreen으로 이동
+            return const TimePostMapScreen();
           } else {
-            return const LoginScreen(); // 로그인 실패 또는 토큰 없을 시, LoginScreen으로 이동
+            // 토큰이 없으면 로그인 화면을 보여줍니다.
+            return LoginScreen();
           }
         },
       ),

@@ -3,13 +3,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/user_service.dart';
+import 'package:timemarket_frontend/screens/time_post_list_screen.dart';
 import '../models/user_model.dart';
+import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
 import 'wallet_screen.dart';
 
-// ✅ 프로필 이미지 변경 기능을 위해 StatefulWidget으로 변경
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -19,15 +20,9 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
+  final AuthService _authService = AuthService();
   final _picker = ImagePicker();
   User? _user;
-
-  Future<void> _fetchUserInfo() async {
-    final user = await _userService.getMyInfo();
-    setState(() {
-      _user = user;
-    });
-  }
 
   @override
   void initState() {
@@ -35,48 +30,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserInfo();
   }
 
-  // ✅ 갤러리에서 이미지를 선택하고 업로드하는 함수
+  // 내 정보를 서버에서 가져오는 함수
+  Future<void> _fetchUserInfo() async {
+    final user = await _userService.getMyInfo();
+    if (mounted) {
+      setState(() {
+        _user = user;
+      });
+    }
+  }
+
+  // 갤러리에서 이미지를 선택하고 업로드하는 함수
   Future<void> _pickImageAndUpload() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       File newImage = File(pickedFile.path);
-      bool success = await _userService.updateProfileImage(newImage);
-      if (success) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("프로필 이미지가 성공적으로 변경되었습니다.")),
-        );
-        _fetchUserInfo();
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("이미지 변경에 실패했습니다.")));
-      }
+      // TODO: user_service에 프로필 이미지 업로드 API 호출 로직 구현 필요
+      // bool success = await _userService.updateProfileImage(newImage);
+      // if (success) {
+      //   _fetchUserInfo(); // 성공 시 유저 정보 다시 로드
+      // }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 유저 정보가 로딩 중일 때 로딩 화면 표시
     if (_user == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Scaffold(
+        appBar: AppBar(title: const Text('마이 페이지')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
 
     final user = _user!;
-
     return Scaffold(
-      appBar: AppBar(title: const Text('내 프로필')),
+      // 마이페이지 전용 상단 바
+      appBar: AppBar(
+        title: const Text('마이 페이지'),
+        // 지도 화면과 동일한 버튼들을 배치하여 일관성 유지
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.list),
+            tooltip: '게시글 목록',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TimePostListScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: '마이 페이지',
+            onPressed: () {
+              // 이미 마이페이지이므로 아무 동작 안함
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: '로그아웃',
+            onPressed: () async {
+              await _authService.logout();
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (Route<dynamic> route) => false,
+              );
+            },
+          ),
+        ],
+      ),
+      // 마이페이지 본문
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ✅ 이미지와 버튼 레이아웃 재현
-            Center(
-              child: Stack(
+        child: Center(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 프로필 이미지 섹션
+              Stack(
                 children: [
                   CircleAvatar(
-                    radius: 60,
+                    radius: 70,
                     backgroundColor: Colors.grey[200],
                     backgroundImage:
                         user.profileImageUrl != null
@@ -86,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         user.profileImageUrl == null
                             ? Icon(
                               Icons.person,
-                              size: 60,
+                              size: 70,
                               color: Colors.grey[600],
                             )
                             : null,
@@ -96,40 +135,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     right: 0,
                     child: CircleAvatar(
                       backgroundColor: Colors.blueAccent,
-                      radius: 20,
                       child: IconButton(
                         icon: const Icon(
                           Icons.camera_alt,
                           color: Colors.white,
-                          size: 16,
+                          size: 20,
                         ),
-                        onPressed: _pickImageAndUpload, // ✅ 이미지 변경 함수 호출
+                        onPressed: _pickImageAndUpload,
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: Text(
+              const SizedBox(height: 24),
+              // 사용자 이름 및 이메일
+              Text(
                 user.username,
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                '⭐ 평점: ${user.rating.toStringAsFixed(1)} (24)',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              const SizedBox(height: 8),
+              Text(
+                user.email,
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: ElevatedButton(
+              const SizedBox(height: 16),
+              // 정보 수정 버튼
+              ElevatedButton(
                 onPressed: () async {
                   final result = await Navigator.push(
                     context,
@@ -137,135 +171,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       builder: (context) => EditProfileScreen(user),
                     ),
                   );
+                  // 수정 화면에서 돌아왔을 때 정보 갱신
                   if (result == true) {
                     _fetchUserInfo();
                   }
                 },
-                child: const Text('프로필 수정'),
+                child: const Text('정보 수정'),
               ),
-            ),
-            const SizedBox(height: 32),
-
-            // ✅ 핵심 정보 요약 섹션 디자인 재현
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 16),
+              // 정보 카드 목록
+              _buildInfoCard(
+                title: "시간 지갑 잔고",
+                value: "${user.timeCredit.toStringAsFixed(1)} 시간",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const WalletScreen()),
+                  );
+                },
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildSummaryItem(
-                      icon: Icons.watch_later_outlined,
-                      label: '보유 시간',
-                      value: '${user.timeCredit.toStringAsFixed(1)}h',
-                    ),
-                    _buildSummaryItem(
-                      icon: Icons.thumb_up_alt_outlined,
-                      label: '누적 봉사 시간',
-                      value: '${user.cumulativeTime.toStringAsFixed(1)}h',
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 16),
+              _buildInfoCard(
+                title: "누적 거래 시간",
+                value: "${user.cumulativeTime.toStringAsFixed(1)} 시간",
               ),
-            ),
-            const SizedBox(height: 32),
-
-            // ✅ 계정 및 추가 기능 섹션 디자인 재현
-            const Text(
-              '계정 정보',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 24),
-            _buildListTile(
-              title: '아이디 (닉네임)',
-              trailing: Text(
-                user.username,
-                style: TextStyle(color: Colors.grey[600]),
+              const SizedBox(height: 16),
+              _buildInfoCard(
+                title: "평점",
+                value: "${user.rating.toStringAsFixed(1)} / 5.0",
               ),
-            ),
-            const Divider(), // ✅ 구분선 추가
-            _buildListTile(
-              title: '이메일',
-              trailing: Text(
-                user.email,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ),
-            const Divider(), // ✅ 구분선 추가
-            const SizedBox(height: 24),
-            const Text(
-              '추가 기능',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 24),
-            _buildListTile(
-              title: '거래 내역 보기',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const WalletScreen()),
-                );
-              },
-              leading: const Icon(
-                Icons.account_balance_wallet_outlined,
-              ), // ✅ 아이콘 추가
-              trailing: const Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-              ), // ✅ 아이콘 추가
-            ),
-            const Divider(), // ✅ 구분선 추가
-            _buildListTile(
-              title: '내가 쓴 리뷰 보기',
-              onTap: () {
-                // TODO: 내가 쓴 리뷰 페이지로 이동
-              },
-              leading: const Icon(Icons.reviews_outlined), // ✅ 아이콘 추가
-              trailing: const Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-              ), // ✅ 아이콘 추가
-            ),
-            const Divider(), // ✅ 구분선 추가
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSummaryItem({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, size: 40, color: Colors.blueAccent),
-        const SizedBox(height: 8),
-        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildListTile({
+  // 정보를 보여주는 카드 위젯
+  Widget _buildInfoCard({
     required String title,
-    Widget? trailing,
+    required String value,
     VoidCallback? onTap,
-    Icon? leading,
   }) {
-    return ListTile(
-      title: Text(title, style: const TextStyle(fontSize: 16)),
-      leading: leading, // ✅ leading 아이콘 추가
-      trailing: trailing,
+    return InkWell(
       onTap: onTap,
-      contentPadding: EdgeInsets.zero,
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Row(
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.blueAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (onTap != null)
+                    const Icon(Icons.chevron_right, color: Colors.grey),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
