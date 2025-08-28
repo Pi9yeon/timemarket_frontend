@@ -5,8 +5,8 @@ import '../models/post_model.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'chat_screen.dart'; // ✅ 1. chat_screen.dart를 import 합니다.
 
-// ✅ StatelessWidget을 StatefulWidget으로 변경하여 지도의 상태를 관리합니다.
 class PostDetailScreen extends StatefulWidget {
   final Post post;
 
@@ -17,7 +17,6 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
-  // ✅ 지도의 전체 화면 모드 상태를 관리하는 변수입니다.
   bool _isMapFullscreen = false;
 
   Color _getBadgeColor(String type) {
@@ -28,7 +27,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return type == 'sale' ? '판매' : '구인';
   }
 
-  // ✅ 전체 화면 모드를 토글하는 함수
   void _toggleFullscreen() {
     setState(() {
       _isMapFullscreen = !_isMapFullscreen;
@@ -40,7 +38,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final formattedDate = DateFormat(
       'yyyy.MM.dd HH:mm',
     ).format(widget.post.createdAt);
-    final postLocation = LatLng(widget.post.latitude, widget.post.longitude);
+
+    final lat = widget.post.latitude;
+    final lng = widget.post.longitude;
+    final bool isLocationValid =
+        (lat >= -90 && lat <= 90) && (lng >= -180 && lng <= 180);
+    final LatLng? postLocation = isLocationValid ? LatLng(lat, lng) : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -48,8 +51,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: _buildChatButton(),
       body: Stack(
-        // ✅ 지도가 다른 위젯 위에 겹쳐 보이도록 Stack 위젯을 사용합니다.
         children: [
           SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
@@ -89,15 +92,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // ✅ 수정된 부분: 필요 시간, 작성자, 작성일 정보를 나란히 배치합니다.
                 Row(
                   children: [
                     Expanded(
                       child: _buildInfoCard(
                         icon: Icons.access_time_outlined,
                         label: '필요 시간',
-                        value: '${widget.post.price}',
+                        value: '${widget.post.price} TC',
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -119,20 +120,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
                 const Divider(),
                 const SizedBox(height: 16),
-
                 _buildContentCard(widget.post.description),
                 const SizedBox(height: 16),
-
-                _buildLocationCard(postLocation, context),
+                if (postLocation != null)
+                  _buildLocationCard(postLocation, context)
+                else
+                  _buildInvalidLocationCard(),
+                // ✅ 채팅 버튼을 bottomNavigationBar로 옮겼으므로 하단 공간 확보
+                const SizedBox(height: 80),
               ],
             ),
           ),
-
-          // ✅ 전체 화면 지도가 활성화되었을 때만 표시되는 위젯
-          if (_isMapFullscreen)
+          if (_isMapFullscreen && postLocation != null)
             GestureDetector(
               onTap: _toggleFullscreen,
               child: Container(
@@ -153,7 +154,50 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // ✅ _buildContentCard 헬퍼 위젯
+  // 채팅하기 버튼 UI를 생성하는 헬퍼 위젯
+  Widget _buildChatButton() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3),
+            spreadRadius: 2,
+            blurRadius: 5,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: ElevatedButton.icon(
+          icon: const Icon(Icons.chat_bubble_outline),
+          label: const Text('채팅하기'),
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.blueAccent,
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            textStyle: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+          ),
+          onPressed: () {
+            // ✅ 2. 버튼 클릭 시 ChatScreen으로 이동하도록 로직을 수정합니다.
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ChatScreen(post: widget.post)),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // (이하 다른 헬퍼 위젯들은 변경 없음)
+
   Widget _buildContentCard(String description) {
     return Card(
       elevation: 2,
@@ -185,7 +229,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // ✅ _buildLocationCard 헬퍼 위젯
   Widget _buildLocationCard(LatLng postLocation, BuildContext context) {
     return Card(
       elevation: 2,
@@ -206,19 +249,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 16),
-
-              // ✅ 지도를 Stack으로 감싸서 전체 화면 버튼을 겹쳐 올립니다.
               Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
+                    child: SizedBox(
                       height: 200,
                       width: double.infinity,
                       child: _buildMapWidget(postLocation, false),
                     ),
                   ),
-                  // ✅ 전체 화면 버튼
                   Positioned(
                     bottom: 8,
                     right: 8,
@@ -245,7 +285,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // ✅ _buildMapWidget 헬퍼 위젯
   Widget _buildMapWidget(LatLng location, bool isFullscreen) {
     return FlutterMap(
       options: MapOptions(
@@ -278,7 +317,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // ✅ _buildInfoCard 헬퍼 위젯
   Widget _buildInfoCard({
     required IconData icon,
     required String label,
@@ -297,7 +335,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // ✅ _buildInfoRow 헬퍼 위젯
   Widget _buildInfoRow({
     required IconData icon,
     required String label,
@@ -331,6 +368,35 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildInvalidLocationCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Icon(Icons.location_off_outlined, color: Colors.red, size: 24),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '유효하지 않은 위치 정보입니다.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

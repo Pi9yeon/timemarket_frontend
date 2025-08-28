@@ -46,43 +46,68 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
     }
   }
 
-  List<Marker> _buildMarkers() {
-    return _posts.map((post) {
-      final lat = post['latitude'] as double;
-      final lng = post['longitude'] as double;
-      final title = post['title'] as String? ?? '제목 없음';
+  // lib/screens/time_post_map_screen.dart
 
-      return Marker(
-        width: 80,
-        height: 80,
-        point: LatLng(lat, lng),
-        builder:
-            (ctx) => GestureDetector(
-              onTap: () {
-                // ✅ 수정된 부분: 주석을 올바르게 닫고, 내용을 다이얼로그로 옮겼습니다.
-                showDialog(
-                  context: context,
-                  builder:
-                      (_) => AlertDialog(
-                        title: Text(title),
-                        content: Text('상세 내용을 보시겠습니까?'), // 예시 내용
-                        actions: [
-                          TextButton(
-                            child: const Text('닫기'),
-                            onPressed: () => Navigator.pop(context),
+  // ✅ 1. 기존 .where().map() 구조를 for 반복문으로 변경하여 안정성 강화
+  List<Marker> _buildMarkers() {
+    // 반환할 마커들을 담을 빈 리스트를 생성합니다.
+    final List<Marker> markers = [];
+
+    // 백엔드에서 받아온 모든 게시물을 하나씩 확인합니다.
+    for (final post in _posts) {
+      try {
+        // ✅ 2. num 타입으로 유연하게 받고 toDouble()으로 변환하여 안정성 확보
+        final lat = (post['latitude'] as num).toDouble();
+        final lng = (post['longitude'] as num).toDouble();
+        final title = post['title'] as String? ?? '제목 없음';
+
+        // ✅ 3. Marker를 생성하기 전에 위도와 경도 값의 유효 범위를 직접 확인합니다.
+        // 범위를 벗어나는 데이터는 마커로 만들지 않고 건너뜁니다.
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          // 콘솔에 어떤 데이터가 잘못되었는지 로그를 남겨서 디버깅을 돕습니다.
+          print('잘못된 좌표값으로 인해 마커를 건너뜁니다: 위도=$lat, 경도=$lng');
+          continue; // 다음 게시물로 넘어갑니다.
+        }
+
+        // 유효한 좌표값을 가진 게시물만 마커로 만들어 리스트에 추가합니다.
+        markers.add(
+          Marker(
+            width: 80,
+            height: 80,
+            point: LatLng(lat, lng), // 이제 이 코드는 유효한 값만 받게 됩니다.
+            builder:
+                (ctx) => GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder:
+                          (_) => AlertDialog(
+                            title: Text(title),
+                            content: Text('위도: $lat\n경도: $lng'),
+                            actions: [
+                              TextButton(
+                                child: const Text('닫기'),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                );
-              },
-              child: const Icon(
-                Icons.location_pin,
-                color: Colors.red,
-                size: 40,
-              ),
-            ),
-      );
-    }).toList(); // ✅ .map()의 결과를 .toList()로 변환하여 반환 타입을 일치시켰습니다.
+                    );
+                  },
+                  child: const Icon(
+                    Icons.location_pin,
+                    color: Colors.red,
+                    size: 40,
+                  ),
+                ),
+          ),
+        );
+      } catch (e) {
+        // 숫자 변환 오류 등 예기치 않은 에러가 발생해도 앱이 멈추지 않도록 처리합니다.
+        print('게시물 데이터 처리 중 오류 발생: $post, 오류: $e');
+        continue;
+      }
+    }
+    return markers;
   }
 
   @override

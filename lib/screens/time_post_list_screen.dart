@@ -21,12 +21,11 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
   final TimePostService _timePostService = TimePostService();
   final AuthService _authService = AuthService();
 
-  List<dynamic>? _posts;
+  List<Post> _posts = [];
   bool _loading = true;
 
-  // ✅ 1. '전체' 상태를 추가하고 기본값으로 설정
-  String? _currentPostType; // null 또는 빈 문자열이 '전체'를 의미
-  List<bool> _isSelected = [true, false, false]; // [전체, 판매, 구인]
+  String? _currentPostType;
+  List<bool> _isSelected = [true, false, false];
 
   final double _lat = 37.5;
   final double _lng = 127.0;
@@ -42,19 +41,30 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
       _loading = true;
     });
 
-    // ✅ 2. _currentPostType으로 API 요청 (null이면 전체 조회)
-    final posts = await _timePostService.fetchNearbyPosts(
+    final postsData = await _timePostService.fetchNearbyPosts(
       lat: _lat,
       lng: _lng,
       type: _currentPostType,
     );
+
+    if (postsData != null) {
+      final parsedPosts =
+          (postsData as List)
+              .map((postJson) => Post.fromJson(postJson))
+              .toList();
+
+      parsedPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      setState(() {
+        _posts = parsedPosts;
+      });
+    }
+
     setState(() {
-      _posts = posts ?? [];
       _loading = false;
     });
   }
 
-  // 상단 액션 버튼 목록 (기존과 동일)
   List<Widget> _buildActions() {
     return [
       IconButton(
@@ -97,7 +107,6 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // ✅ 3. AppBar의 title 부분에 3개의 토글 버튼 추가
         title: ToggleButtons(
           isSelected: _isSelected,
           onPressed: (int index) {
@@ -105,13 +114,12 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
               for (int i = 0; i < _isSelected.length; i++) {
                 _isSelected[i] = i == index;
               }
-              // ✅ 4. 선택된 타입 변경 로직 수정
               if (index == 0) {
-                _currentPostType = null; // 전체
+                _currentPostType = null;
               } else if (index == 1) {
-                _currentPostType = 'sale'; // 판매
+                _currentPostType = 'sale';
               } else {
-                _currentPostType = 'request'; // 구인
+                _currentPostType = 'request';
               }
             });
             _loadPosts();
@@ -139,17 +147,15 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
         ),
         actions: _buildActions(),
       ),
-      // (body 부분은 기존과 동일)
       body:
           _loading
               ? const Center(child: CircularProgressIndicator())
-              : _posts == null || _posts!.isEmpty
+              : _posts.isEmpty
               ? const Center(child: Text('게시글이 없습니다.'))
               : ListView.builder(
-                itemCount: _posts!.length,
+                itemCount: _posts.length,
                 itemBuilder: (context, index) {
-                  final post = _posts![index];
-                  final postObj = Post.fromJson(post);
+                  final postObj = _posts[index];
 
                   Color getBadgeColor(String type) {
                     return type == 'sale' ? Colors.green : Colors.blue;
@@ -239,6 +245,17 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
                                     ),
                                   ],
                                 ),
+
+                                // ✅ 1. 가격 표시를 위한 Text 위젯 추가
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${postObj.price} TC', // TC는 Time Credit의 약자
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -248,13 +265,31 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
                               IconButton(
                                 icon: const Icon(Icons.edit),
                                 onPressed: () async {
+                                  final postJson = {
+                                    'id': postObj.id,
+                                    'title': postObj.title,
+                                    'description': postObj.description,
+                                    'latitude': postObj.latitude,
+                                    'longitude': postObj.longitude,
+                                    'type': postObj.type,
+                                    'price': postObj.price,
+                                    'created_at':
+                                        postObj.createdAt.toIso8601String(),
+                                    'user': {
+                                      'id': postObj.author.id,
+                                      'nickname': postObj.author.username,
+                                      'email': postObj.author.email,
+                                      'profile_image':
+                                          postObj.author.profileImageUrl,
+                                    },
+                                  };
                                   final updated = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder:
                                           (_) => EditPostScreen(
                                             postId: postObj.id,
-                                            initialData: post,
+                                            initialData: postJson,
                                           ),
                                     ),
                                   );
