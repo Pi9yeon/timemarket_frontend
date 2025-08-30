@@ -1,18 +1,20 @@
 // lib/screens/chat_screen.dart
-import 'dart:convert'; // ✅ JSON 인코딩/디코딩을 위해 필요
+
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:web_socket_channel/web_socket_channel.dart'; // ✅ 웹소켓 채널 사용
+import 'package:web_socket_channel/web_socket_channel.dart';
 import '../services/chat_service.dart';
-import '../services/user_service.dart'; // ✅ 현재 사용자 ID를 가져오기 위함
 
 class ChatScreen extends StatefulWidget {
   final int roomId;
   final String otherUserName;
+  final int currentUserId;
 
   const ChatScreen({
     super.key,
     required this.roomId,
     required this.otherUserName,
+    required this.currentUserId,
   });
 
   @override
@@ -24,34 +26,49 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  WebSocketChannel? _channel; // ✅ 메시지를 주고받을 통신 채널
-  int? _currentUserId; // ✅ 내가 보낸 메시지인지 구분하기 위한 ID
+  WebSocketChannel? _channel;
+
+  List<Map<String, dynamic>> _messages = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _connectToChat();
+    _initializeChat();
   }
 
-  // 채팅 서버에 연결하는 함수
-  Future<void> _connectToChat() async {
-    // 현재 로그인한 사용자의 ID를 가져옵니다.
-    final user = await UserService().getMyInfo();
-    if (user == null) return;
-    _currentUserId = user.id;
+  Future<void> _initializeChat() async {
+    final messageHistory = await _chatService.getMessages(widget.roomId);
+    if (messageHistory != null) {
+      setState(() {
+        _messages = List<Map<String, dynamic>>.from(messageHistory);
+        _isLoading = false;
+      });
+      _scrollToBottom();
+    } else {
+      setState(() => _isLoading = false);
+    }
 
-    // ChatService를 통해 웹소켓 채널에 연결합니다.
-    final channel = await _chatService.connect(widget.roomId);
-    setState(() {
-      _channel = channel;
+    _channel = await _chatService.connect(widget.roomId);
+
+    _channel?.stream.listen((message) {
+      // ✅ 백엔드에서 오는 데이터는 이제 항상 일관된 JSON 형식이므로 그대로 디코딩합니다.
+      final newMessage = jsonDecode(message);
+
+      // 중복 메시지 방지 (이미 목록에 있는 메시지인지 확인)
+      bool isDuplicate = _messages.any((m) => m['id'] == newMessage['id']);
+      if (!isDuplicate) {
+        setState(() {
+          _messages.add(newMessage);
+        });
+        _scrollToBottom();
+      }
     });
   }
 
-  // 메시지를 웹소켓 채널로 전송하는 함수
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty || _channel == null) return;
 
-    // 백엔드에서 받을 JSON 형식에 맞춰 메시지를 구성하고 전송합니다.
     final message = {'message': _messageController.text.trim()};
     _channel!.sink.add(jsonEncode(message));
 
@@ -60,11 +77,22 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    // ✅ 화면이 종료될 때 웹소켓 연결을 반드시 끊어줘야 합니다. (중요!)
     _channel?.sink.close();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -72,55 +100,34 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.otherUserName),
-        // ... (이전 AppBar 스타일과 동일)
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            // ✅ StreamBuilder: 웹소켓 채널(stream)을 계속 듣고 있다가,
-            // 새로운 데이터가 들어올 때마다 화면을 자동으로 다시 그려주는 위젯입니다.
-            child: StreamBuilder(
-              stream: _channel?.stream,
-              builder: (context, snapshot) {
-                // 연결 중이거나, 채널이 아직 준비되지 않았을 때 로딩 표시
-                if (snapshot.connectionState == ConnectionState.waiting ||
-                    _channel == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                // 에러 발생 시 에러 메시지 표시
-                if (snapshot.hasError) {
-                  return Center(child: Text('오류가 발생했습니다: ${snapshot.error}'));
-                }
-                // 데이터가 없을 때 (아직 메시지가 없을 때)
-                if (!snapshot.hasData) {
-                  return const Center(child: Text('채팅을 시작해보세요!'));
-                }
-
-                // ✅ 백엔드에서 받은 메시지 목록 (JSON 문자열 리스트)
-                final messages =
-                    jsonDecode(snapshot.data as String)['messages'] as List;
-
-                // 메시지를 화면에 그립니다.
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final isMe = message['sender']['id'] == _currentUserId;
-                    return _buildMessageBubble(isMe, message['message']);
-                  },
-                );
-              },
-            ),
-          ),
-          _buildMessageInput(),
-        ],
-      ),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16.0),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final message = _messages[index];
+                        // ✅ 'sender'는 이제 항상 Map 형태이므로 안전하게 id를 가져올 수 있습니다.
+                        final isMe =
+                            message['sender']['id'] == widget.currentUserId;
+                        return _buildMessageBubble(isMe, message['message']);
+                      },
+                    ),
+                  ),
+                  _buildMessageInput(),
+                ],
+              ),
     );
   }
 
-  // 말풍선을 그리는 위젯
   Widget _buildMessageBubble(bool isMe, String text) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -153,7 +160,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // 메시지 입력창을 그리는 위젯
   Widget _buildMessageInput() {
     return Container(
       padding: const EdgeInsets.all(8.0),

@@ -1,35 +1,38 @@
+// lib/services/auth_service.dart
+
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:timemarket_frontend/models/user_model.dart';
+import 'package:timemarket_frontend/services/user_service.dart';
 
+// ✅ Dio를 사용하므로 baseUrl과 Dio 인스턴스를 클래스 외부에서 관리합니다.
 const String baseUrl = 'http://localhost:8000/api';
-// 2. const String baseUrl = 'http://10.0.2.2:8000/api';
-// 3. const String baseUrl = 'http://172.30.1.50:8000/api';
 
 class AuthService {
-  Future<bool> login(String username, String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login/'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'nickname': username,
-        'email': email,
-        'password': password,
-      }),
-    );
+  // ✅ Dio 인스턴스를 생성하여 API 통신에 사용합니다.
+  final Dio dio = Dio();
+  final _storage = const FlutterSecureStorage();
 
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body);
-      final token = body['access'];
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', token);
-      return true;
+  Future<bool> login(String username, String email, String password) async {
+    try {
+      final response = await dio.post(
+        '$baseUrl/auth/login/',
+        data: {'nickname': username, 'email': email, 'password': password},
+      );
+
+      if (response.statusCode == 200) {
+        final token = response.data['access'];
+        await _storage.write(key: 'jwt', value: token);
+        return true;
+      }
+    } catch (e) {
+      print('로그인 실패: $e');
     }
     return false;
   }
 
-  /// 프로필 이미지 포함 회원가입 (profileImage는 null 가능)
   Future<bool> signup(
     String username,
     String email,
@@ -37,56 +40,43 @@ class AuthService {
     File? profileImage,
   ) async {
     var uri = Uri.parse('$baseUrl/auth/signup/');
-    var request = http.MultipartRequest('POST', uri);
-
-    request.fields['nickname'] = username;
-    request.fields['email'] = email;
-    request.fields['password'] = password;
+    var formData = FormData.fromMap({
+      'nickname': username,
+      'email': email,
+      'password': password,
+    });
 
     if (profileImage != null) {
-      var stream = http.ByteStream(profileImage.openRead());
-      var length = await profileImage.length();
-
-      var multipartFile = http.MultipartFile(
-        'profile_image', // Django에서 받는 필드명과 일치해야 함
-        stream,
-        length,
-        filename: profileImage.path.split('/').last,
+      formData.files.add(
+        MapEntry(
+          'profile_image',
+          await MultipartFile.fromFile(profileImage.path),
+        ),
       );
-      request.files.add(multipartFile);
     }
 
     try {
-      var response = await request.send();
-
-      if (response.statusCode == 201) {
-        print('회원가입 성공!');
-        return true;
-      } else {
-        // 📌 백엔드에서 보낸 상세 에러 메시지를 읽어서 출력
-        var responseBody = await response.stream.bytesToString();
-        print('회원가입 실패 (상태 코드: ${response.statusCode}):');
-        print('에러 내용: $responseBody');
-        return false;
-      }
+      final response = await dio.postUri(uri, data: formData);
+      return response.statusCode == 201;
     } catch (e) {
-      // 📌 네트워크 연결 실패 등의 예외 처리
-      print('회원가입 중 네트워크 오류 발생: $e');
-      return false;
+      print('회원가입 실패: $e');
     }
-
-    // var response = await request.send();
-
-    // return response.statusCode == 201;
+    return false;
   }
 
   Future<void> logout() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
+    await _storage.delete(key: 'jwt');
   }
 
   Future<String?> getToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    return await _storage.read(key: 'jwt');
+  }
+
+  // ✅ 1. getUser() 함수를 새로 추가합니다.
+  // 이 함수는 UserService를 사용하여 현재 로그인된 사용자의 상세 정보를 가져옵니다.
+  // ChatListScreen에서 이 함수를 호출하여 _currentUser를 설정합니다.
+  Future<User?> getUser() async {
+    // UserService의 getMyInfo 함수는 이미 토큰을 포함하여 요청을 보냅니다.
+    return await UserService().getMyInfo();
   }
 }

@@ -5,7 +5,7 @@ import '../models/post_model.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'chat_screen.dart'; // ✅ 1단계: 아래 3개의 import를 잠시 주석 처리합니다.
+import 'chat_screen.dart';
 import '../services/chat_service.dart';
 import '../services/user_service.dart';
 
@@ -19,10 +19,10 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
-  final ChatService _chatService = ChatService(); // ✅ 2단계: 서비스 인스턴스도 주석 처리합니다.
+  final ChatService _chatService = ChatService();
   final UserService _userService = UserService();
   bool _isMapFullscreen = false;
-  bool _isChatButtonLoading = false; // ✅ 3단계: 버튼 로딩 상태도 주석 처리합니다.
+  bool _isChatButtonLoading = false;
 
   Color _getBadgeColor(String type) {
     return type == 'sale' ? Colors.green : Colors.blue;
@@ -56,7 +56,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
       ),
-      bottomNavigationBar: _buildChatButton(), // ✅ 4단계: 채팅 버튼 호출 부분을 주석 처리합니다.
+      bottomNavigationBar: _buildChatButton(),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -133,6 +133,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   _buildLocationCard(postLocation, context)
                 else
                   _buildInvalidLocationCard(),
+                const SizedBox(height: 80),
               ],
             ),
           ),
@@ -156,8 +157,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       ),
     );
   }
-
-  // lib/screens/post_detail_screen.dart의 _PostDetailScreenState 클래스 내부
 
   Widget _buildChatButton() {
     return Container(
@@ -205,10 +204,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   : () async {
                     setState(() => _isChatButtonLoading = true);
 
-                    // ✅ 수정: chatService를 호출할 때 게시글 작성자의 ID를 receiverId로 함께 전달합니다.
                     final roomData = await _chatService.createOrGetChatRoom(
                       widget.post.id,
-                      widget.post.author.id, // 상대방(게시글 작성자) ID
+                      widget.post.author.id,
                     );
 
                     final currentUser = await _userService.getMyInfo();
@@ -221,6 +219,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               (_) => ChatScreen(
                                 roomId: roomData['id'],
                                 otherUserName: widget.post.author.username,
+                                // ✅ 수정된 부분: 필수 파라미터인 currentUserId를 전달합니다.
+                                currentUserId: currentUser.id,
                               ),
                         ),
                       );

@@ -3,13 +3,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:timemarket_frontend/screens/time_post_list_screen.dart';
-import '../models/user_model.dart';
-import '../services/auth_service.dart';
+import 'package:intl/intl.dart';
 import '../services/user_service.dart';
+import '../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
 import 'wallet_screen.dart';
+import 'chat_list_screen.dart'; // ✅ 새로 만든 대화 목록 화면 import
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,7 +20,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
-  final AuthService _authService = AuthService();
   final _picker = ImagePicker();
   User? _user;
 
@@ -30,186 +29,188 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserInfo();
   }
 
-  // 내 정보를 서버에서 가져오는 함수
   Future<void> _fetchUserInfo() async {
     final user = await _userService.getMyInfo();
-    if (mounted) {
-      setState(() {
-        _user = user;
-      });
-    }
+    setState(() {
+      _user = user;
+    });
   }
 
-  // 갤러리에서 이미지를 선택하고 업로드하는 함수
   Future<void> _pickImageAndUpload() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       File newImage = File(pickedFile.path);
-      // TODO: user_service에 프로필 이미지 업로드 API 호출 로직 구현 필요
-      // bool success = await _userService.updateProfileImage(newImage);
-      // if (success) {
-      //   _fetchUserInfo(); // 성공 시 유저 정보 다시 로드
-      // }
+      bool success = await _userService.updateProfileImage(newImage);
+      if (success) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("프로필 이미지가 성공적으로 변경되었습니다.")),
+        );
+        _fetchUserInfo();
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("이미지 변경에 실패했습니다.")));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 유저 정보가 로딩 중일 때 로딩 화면 표시
     if (_user == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('마이 페이지')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     final user = _user!;
+
     return Scaffold(
-      // 마이페이지 전용 상단 바
       appBar: AppBar(
-        title: const Text('마이 페이지'),
-        // 지도 화면과 동일한 버튼들을 배치하여 일관성 유지
+        title: const Text('마이페이지'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.list),
-            tooltip: '게시글 목록',
-            onPressed: () {
-              Navigator.push(
+            icon: const Icon(Icons.edit),
+            onPressed: () async {
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const TimePostListScreen(),
+                  builder: (context) => EditProfileScreen(user),
                 ),
               );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: '마이 페이지',
-            onPressed: () {
-              // 이미 마이페이지이므로 아무 동작 안함
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: '로그아웃',
-            onPressed: () async {
-              await _authService.logout();
-              if (!mounted) return;
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (Route<dynamic> route) => false,
-              );
+              if (result == true) {
+                _fetchUserInfo();
+              }
             },
           ),
         ],
       ),
-      // 마이페이지 본문
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // 프로필 이미지 섹션
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 70,
-                    backgroundColor: Colors.grey[200],
-                    backgroundImage:
-                        user.profileImageUrl != null
-                            ? NetworkImage(user.profileImageUrl!)
-                            : null,
-                    child:
-                        user.profileImageUrl == null
-                            ? Icon(
-                              Icons.person,
-                              size: 70,
-                              color: Colors.grey[600],
-                            )
-                            : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.blueAccent,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        onPressed: _pickImageAndUpload,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              // 사용자 이름 및 이메일
-              Text(
-                user.username,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 70,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage:
+                      user.profileImageUrl != null
+                          ? NetworkImage(user.profileImageUrl!)
+                          : null,
+                  child:
+                      user.profileImageUrl == null
+                          ? Icon(
+                            Icons.person,
+                            size: 70,
+                            color: Colors.grey[600],
+                          )
+                          : null,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                user.email,
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 16),
-              // 정보 수정 버튼
-              ElevatedButton(
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EditProfileScreen(user),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.blueAccent,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.camera_alt,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: _pickImageAndUpload,
                     ),
-                  );
-                  // 수정 화면에서 돌아왔을 때 정보 갱신
-                  if (result == true) {
-                    _fetchUserInfo();
-                  }
-                },
-                child: const Text('정보 수정'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              user.username,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              user.email,
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+            _buildInfoCard(
+              title: "재능/요청",
+              value: user.skillsAndRequests ?? '미입력',
+            ),
+            const SizedBox(height: 16),
+            _buildInfoCard(
+              title: "시간 크레딧 잔고",
+              value: "${user.timeCredit.toStringAsFixed(1)} Time",
+            ),
+            const SizedBox(height: 16),
+            _buildInfoCard(
+              title: "누적 거래 시간",
+              value: "${user.cumulativeTime.toStringAsFixed(1)} Time",
+            ),
+            const SizedBox(height: 16),
+            _buildInfoCard(
+              title: "평점",
+              value: "${user.rating.toStringAsFixed(1)} / 5.0",
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            // ✅ '대화 목록 보기' 메뉴 추가
+            _buildInfoCard(
+              title: "대화 목록",
+              value: "확인하기",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatListScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            _buildInfoCard(
+              title: "거래 내역",
+              value: "자세히 보기",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WalletScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            _buildInfoCard(
+              title: "내가 쓴 리뷰",
+              value: "자세히 보기",
+              onTap: () {
+                // TODO: 내가 쓴 리뷰 페이지로 이동
+              },
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () async {
+                await _userService.authService.logout();
+                if (!mounted) return;
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => LoginScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
               ),
-              const SizedBox(height: 32),
-              const Divider(),
-              const SizedBox(height: 16),
-              // 정보 카드 목록
-              _buildInfoCard(
-                title: "시간 지갑 잔고",
-                value: "${user.timeCredit.toStringAsFixed(1)} 시간",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const WalletScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildInfoCard(
-                title: "누적 거래 시간",
-                value: "${user.cumulativeTime.toStringAsFixed(1)} 시간",
-              ),
-              const SizedBox(height: 16),
-              _buildInfoCard(
-                title: "평점",
-                value: "${user.rating.toStringAsFixed(1)} / 5.0",
-              ),
-            ],
-          ),
+              child: const Text('로그아웃'),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // 정보를 보여주는 카드 위젯
   Widget _buildInfoCard({
     required String title,
     required String value,
@@ -229,7 +230,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title,
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               Row(
@@ -239,7 +240,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.blueAccent,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   if (onTap != null)
