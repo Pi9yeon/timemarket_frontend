@@ -5,7 +5,9 @@ import '../models/post_model.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'chat_screen.dart'; // ✅ 1. chat_screen.dart를 import 합니다.
+import 'chat_screen.dart'; // ✅ 1단계: 아래 3개의 import를 잠시 주석 처리합니다.
+import '../services/chat_service.dart';
+import '../services/user_service.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
@@ -17,7 +19,10 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
+  final ChatService _chatService = ChatService(); // ✅ 2단계: 서비스 인스턴스도 주석 처리합니다.
+  final UserService _userService = UserService();
   bool _isMapFullscreen = false;
+  bool _isChatButtonLoading = false; // ✅ 3단계: 버튼 로딩 상태도 주석 처리합니다.
 
   Color _getBadgeColor(String type) {
     return type == 'sale' ? Colors.green : Colors.blue;
@@ -51,7 +56,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
       ),
-      bottomNavigationBar: _buildChatButton(),
+      bottomNavigationBar: _buildChatButton(), // ✅ 4단계: 채팅 버튼 호출 부분을 주석 처리합니다.
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -128,8 +133,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   _buildLocationCard(postLocation, context)
                 else
                   _buildInvalidLocationCard(),
-                // ✅ 채팅 버튼을 bottomNavigationBar로 옮겼으므로 하단 공간 확보
-                const SizedBox(height: 80),
               ],
             ),
           ),
@@ -154,7 +157,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // 채팅하기 버튼 UI를 생성하는 헬퍼 위젯
+  // lib/screens/post_detail_screen.dart의 _PostDetailScreenState 클래스 내부
+
   Widget _buildChatButton() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
@@ -170,7 +174,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       ),
       child: SafeArea(
         child: ElevatedButton.icon(
-          icon: const Icon(Icons.chat_bubble_outline),
+          icon:
+              _isChatButtonLoading
+                  ? Container(
+                    width: 24,
+                    height: 24,
+                    padding: const EdgeInsets.all(2.0),
+                    child: const CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                  : const Icon(Icons.chat_bubble_outline),
           label: const Text('채팅하기'),
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.white,
@@ -184,19 +199,45 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               borderRadius: BorderRadius.circular(12.0),
             ),
           ),
-          onPressed: () {
-            // ✅ 2. 버튼 클릭 시 ChatScreen으로 이동하도록 로직을 수정합니다.
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => ChatScreen(post: widget.post)),
-            );
-          },
+          onPressed:
+              _isChatButtonLoading
+                  ? null
+                  : () async {
+                    setState(() => _isChatButtonLoading = true);
+
+                    // ✅ 수정: chatService를 호출할 때 게시글 작성자의 ID를 receiverId로 함께 전달합니다.
+                    final roomData = await _chatService.createOrGetChatRoom(
+                      widget.post.id,
+                      widget.post.author.id, // 상대방(게시글 작성자) ID
+                    );
+
+                    final currentUser = await _userService.getMyInfo();
+
+                    if (roomData != null && currentUser != null && mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => ChatScreen(
+                                roomId: roomData['id'],
+                                otherUserName: widget.post.author.username,
+                              ),
+                        ),
+                      );
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('채팅방을 열 수 없습니다.')),
+                        );
+                      }
+                    }
+
+                    setState(() => _isChatButtonLoading = false);
+                  },
         ),
       ),
     );
   }
-
-  // (이하 다른 헬퍼 위젯들은 변경 없음)
 
   Widget _buildContentCard(String description) {
     return Card(
@@ -378,7 +419,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       child: const SizedBox(
         width: double.infinity,
         child: Padding(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
               Icon(Icons.location_off_outlined, color: Colors.red, size: 24),

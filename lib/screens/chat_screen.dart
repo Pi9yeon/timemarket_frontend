@@ -1,122 +1,119 @@
 // lib/screens/chat_screen.dart
-
+import 'dart:convert'; // ✅ JSON 인코딩/디코딩을 위해 필요
 import 'package:flutter/material.dart';
-import '../models/post_model.dart'; // Post 모델 import
+import 'package:web_socket_channel/web_socket_channel.dart'; // ✅ 웹소켓 채널 사용
+import '../services/chat_service.dart';
+import '../services/user_service.dart'; // ✅ 현재 사용자 ID를 가져오기 위함
 
-// 채팅 화면을 담당하는 StatefulWidget 입니다.
 class ChatScreen extends StatefulWidget {
-  // 게시물 정보를 받아와서 채팅방 상단에 제목 등을 표시할 수 있습니다.
-  final Post post;
+  final int roomId;
+  final String otherUserName;
 
-  const ChatScreen({super.key, required this.post});
+  const ChatScreen({
+    super.key,
+    required this.roomId,
+    required this.otherUserName,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  // 메시지 입력을 위한 컨트롤러
+  final ChatService _chatService = ChatService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // ✅ 백엔드 대신 사용할 '더미 데이터'입니다.
-  final List<Map<String, dynamic>> _dummyMessages = [
-    {
-      'senderId': 'other_user', // 상대방 ID
-      'text': '안녕하세요! 게시글 보고 연락드렸습니다.',
-      'timestamp': DateTime.now().subtract(const Duration(minutes: 5)),
-    },
-    {
-      'senderId': 'current_user', // 현재 사용자 ID (나)
-      'text': '네, 안녕하세요! 어떤 도움이 필요하신가요?',
-      'timestamp': DateTime.now().subtract(const Duration(minutes: 4)),
-    },
-    {
-      'senderId': 'other_user',
-      'text': '1시간 정도 강아지 산책을 도와주실 수 있나요?',
-      'timestamp': DateTime.now().subtract(const Duration(minutes: 3)),
-    },
-  ];
+  WebSocketChannel? _channel; // ✅ 메시지를 주고받을 통신 채널
+  int? _currentUserId; // ✅ 내가 보낸 메시지인지 구분하기 위한 ID
+
+  @override
+  void initState() {
+    super.initState();
+    _connectToChat();
+  }
+
+  // 채팅 서버에 연결하는 함수
+  Future<void> _connectToChat() async {
+    // 현재 로그인한 사용자의 ID를 가져옵니다.
+    final user = await UserService().getMyInfo();
+    if (user == null) return;
+    _currentUserId = user.id;
+
+    // ChatService를 통해 웹소켓 채널에 연결합니다.
+    final channel = await _chatService.connect(widget.roomId);
+    setState(() {
+      _channel = channel;
+    });
+  }
+
+  // 메시지를 웹소켓 채널로 전송하는 함수
+  void _sendMessage() {
+    if (_messageController.text.trim().isEmpty || _channel == null) return;
+
+    // 백엔드에서 받을 JSON 형식에 맞춰 메시지를 구성하고 전송합니다.
+    final message = {'message': _messageController.text.trim()};
+    _channel!.sink.add(jsonEncode(message));
+
+    _messageController.clear();
+  }
 
   @override
   void dispose() {
+    // ✅ 화면이 종료될 때 웹소켓 연결을 반드시 끊어줘야 합니다. (중요!)
+    _channel?.sink.close();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  // 메시지를 전송하는 함수 (현재는 더미 데이터에 추가만 합니다)
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
-
-    setState(() {
-      _dummyMessages.add({
-        'senderId': 'current_user',
-        'text': _messageController.text.trim(),
-        'timestamp': DateTime.now(),
-      });
-      _messageController.clear();
-    });
-
-    // 메시지 전송 후 스크롤을 맨 아래로 이동
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // 게시글 작성자의 이름을 AppBar 제목으로 표시합니다.
-        title: Text(widget.post.author.username),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        actions: [
-          // ✅ 채팅 화면 내 거래 버튼 (UI 프로토타입)
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton(
-              onPressed: () {
-                // TODO: 거래 시작 로직 구현
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('거래 시작 기능 구현 예정')));
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.blueAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: const Text('거래하기'),
-            ),
-          ),
-        ],
+        title: Text(widget.otherUserName),
+        // ... (이전 AppBar 스타일과 동일)
       ),
       body: Column(
         children: [
-          // 메시지 목록을 표시하는 부분
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16.0),
-              itemCount: _dummyMessages.length,
-              itemBuilder: (context, index) {
-                final message = _dummyMessages[index];
-                final isMe = message['senderId'] == 'current_user';
-                return _buildMessageBubble(isMe, message['text']);
+            // ✅ StreamBuilder: 웹소켓 채널(stream)을 계속 듣고 있다가,
+            // 새로운 데이터가 들어올 때마다 화면을 자동으로 다시 그려주는 위젯입니다.
+            child: StreamBuilder(
+              stream: _channel?.stream,
+              builder: (context, snapshot) {
+                // 연결 중이거나, 채널이 아직 준비되지 않았을 때 로딩 표시
+                if (snapshot.connectionState == ConnectionState.waiting ||
+                    _channel == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                // 에러 발생 시 에러 메시지 표시
+                if (snapshot.hasError) {
+                  return Center(child: Text('오류가 발생했습니다: ${snapshot.error}'));
+                }
+                // 데이터가 없을 때 (아직 메시지가 없을 때)
+                if (!snapshot.hasData) {
+                  return const Center(child: Text('채팅을 시작해보세요!'));
+                }
+
+                // ✅ 백엔드에서 받은 메시지 목록 (JSON 문자열 리스트)
+                final messages =
+                    jsonDecode(snapshot.data as String)['messages'] as List;
+
+                // 메시지를 화면에 그립니다.
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isMe = message['sender']['id'] == _currentUserId;
+                    return _buildMessageBubble(isMe, message['message']);
+                  },
+                );
               },
             ),
           ),
-          // 메시지 입력창을 표시하는 부분
           _buildMessageInput(),
         ],
       ),
