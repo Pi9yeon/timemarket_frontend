@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+// lib/screens/time_post_map_screen.dart
 
-import '../services/time_post_service.dart';  // 위에 제공하신 서비스
-import '../services/auth_service.dart';       // 로그인, 로그아웃 처리 서비스
-import 'time_post_list_screen.dart';  // 게시글 목록 화면
-import 'login_screen.dart';           // 로그인 화면
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../services/auth_service.dart';
+import '../services/time_post_service.dart';
+import 'create_post_screen.dart'; // CreatePostScreen 임포트
+import 'login_screen.dart';
+import 'profile_screen.dart';
+import 'time_post_list_screen.dart';
 
 class TimePostMapScreen extends StatefulWidget {
   const TimePostMapScreen({super.key});
@@ -17,13 +20,17 @@ class TimePostMapScreen extends StatefulWidget {
 class _TimePostMapScreenState extends State<TimePostMapScreen> {
   final TimePostService _postService = TimePostService();
   final AuthService _authService = AuthService();
-
   List<dynamic> _posts = [];
   bool _loading = true;
-  String _postType = 'sale'; // 기본: 판매 목록
+  final String _postType = 'sale';
 
-  final LatLng _initialCenter = LatLng(37.5665, 126.9780); // 서울 시청 좌표
-  double _zoom = 16; // 300% 확대 비슷한 값
+  final Completer<GoogleMapController> _controller =
+      Completer<GoogleMapController>();
+
+  static const CameraPosition _initialCamera = CameraPosition(
+    target: LatLng(37.5665, 126.9780),
+    zoom: 16.0,
+  );
 
   @override
   void initState() {
@@ -32,77 +39,93 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
   }
 
   Future<void> _loadNearbyPosts() async {
-    // 실제로는 GPS 받아와야 하지만 일단 서울 시청 기준으로 호출
+    // 서버 통신 중에는 로딩 상태로 표시
+    if (!_loading) {
+      setState(() {
+        _loading = true;
+      });
+    }
+    
     final posts = await _postService.fetchNearbyPosts(
-      lat: _initialCenter.latitude,
-      lng: _initialCenter.longitude,
+      lat: _initialCamera.target.latitude,
+      lng: _initialCamera.target.longitude,
       type: _postType,
     );
-
-    if (posts != null) {
+    if (mounted) {
       setState(() {
-        _posts = posts;
-        _loading = false;
-      });
-    } else {
-      // 에러 처리 등 필요
-      setState(() {
+        _posts = posts ?? [];
         _loading = false;
       });
     }
   }
 
-  List<Marker> _buildMarkers() {
-    return _posts.where((post) {
-      final lat = post['latitude'] as double;
-      final lng = post['longitude'] as double;
+  // ✅ 1. 글 작성 화면으로 이동하고, 돌아왔을 때 새로고침하는 함수
+  Future<void> _navigateAndRefresh() async {
+    // CreatePostScreen으로 이동하고, 결과가 돌아올 때까지 기다립니다.
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CreatePostScreen()),
+    );
 
-      // 위도 경도 범위 체크
-      if (lat < -90 || lat > 90) return false;
-      if (lng < -180 || lng > 180) return false;
-
-      return true;
-    }).map((post) {
-      final lat = post['latitude'] as double;
-      final lng = post['longitude'] as double;
-      final title = post['title'] as String? ?? '제목 없음';
-
-      return Marker(
-        width: 80,
-        height: 80,
-        point: LatLng(lat, lng),
-        builder: (ctx) => GestureDetector(
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: Text(title),
-                content: Text('위도: $lat\n경도: $lng'),
-                actions: [
-                  TextButton(
-                    child: const Text('닫기'),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            );
-          },
-          child: const Icon(
-            Icons.location_pin,
-            color: Colors.red,
-            size: 40,
-          ),
-        ),
-      );
-    }).toList();
+    // 만약 CreatePostScreen에서 true를 반환했다면 (성공적으로 글을 작성했다면)
+    if (result == true && mounted) {
+      // 게시물 데이터를 다시 불러옵니다.
+      _loadNearbyPosts();
+    }
   }
 
+  Set<Marker> _buildMarkers() {
+    // ... (_buildMarkers 함수는 변경 없음) ...
+    final Set<Marker> markers = {};
+
+    for (final post in _posts) {
+      try {
+        final lat = (post['latitude'] as num).toDouble();
+        final lng = (post['longitude'] as num).toDouble();
+        final title = post['title'] as String? ?? '제목 없음';
+        final String markerId = post['id']?.toString() ?? 'marker_${markers.length}';
+
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          print('잘못된 좌표값으로 인해 마커를 건너뜁니다: 위도=$lat, 경도=$lng');
+          continue;
+        }
+
+        markers.add(
+          Marker(
+            markerId: MarkerId(markerId),
+            position: LatLng(lat, lng),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text(title),
+                  content: Text('위도: $lat\n경도: $lng'),
+                  actions: [
+                    TextButton(
+                      child: const Text('닫기'),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      } catch (e) {
+        print('게시물 데이터 처리 중 오류 발생: $post, 오류: $e');
+        continue;
+      }
+    }
+    return markers;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('시간 거래 지도'),
+        // ... (AppBar 코드는 변경 없음) ...
+        title: const Text('TimeMarket'),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.list),
@@ -110,7 +133,19 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const TimePostListScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const TimePostListScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: '마이 페이지',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
               );
             },
           ),
@@ -119,9 +154,11 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
             tooltip: '로그아웃',
             onPressed: () async {
               await _authService.logout();
-              Navigator.pushReplacement(
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => LoginScreen()),
+                (Route<dynamic> route) => false,
               );
             },
           ),
@@ -129,20 +166,18 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : FlutterMap(
-        options: MapOptions(
-          center: _initialCenter,
-          zoom: _zoom,
-        ),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            subdomains: const ['a', 'b', 'c'],
-          ),
-          MarkerLayer(
-            markers: _buildMarkers(),
-          ),
-        ],
+          : GoogleMap(
+              initialCameraPosition: _initialCamera,
+              onMapCreated: (GoogleMapController controller) {
+                _controller.complete(controller);
+              },
+              markers: _buildMarkers(),
+            ),
+      // ✅ 2. 글 작성 화면으로 이동하는 FloatingActionButton 추가
+      floatingActionButton: FloatingActionButton(
+        onPressed: _navigateAndRefresh, // 위에서 만든 함수를 연결
+        tooltip: '게시글 작성',
+        child: const Icon(Icons.add),
       ),
     );
   }
