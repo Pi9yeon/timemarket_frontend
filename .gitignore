@@ -22,6 +22,7 @@ ios/Flutter/Flutter.podspec
 .android/
 app/build/
 local.properties
+gradle.properties
 
 # 기타
 *.lock

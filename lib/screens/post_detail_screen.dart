@@ -1,13 +1,13 @@
 // lib/screens/post_detail_screen.dart
 
 import 'package:flutter/material.dart';
-import '../models/post_model.dart';
+// ✅ google_maps_flutter 패키지 및 LatLng 클래스 임포트
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'chat_screen.dart';
+import '../models/post_model.dart';
 import '../services/chat_service.dart';
 import '../services/user_service.dart';
+import 'chat_screen.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
@@ -24,6 +24,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _isMapFullscreen = false;
   bool _isChatButtonLoading = false;
 
+  // ... (다른 함수들은 변경 없음) ...
   Color _getBadgeColor(String type) {
     return type == 'sale' ? Colors.green : Colors.blue;
   }
@@ -38,6 +39,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     });
   }
 
+
   @override
   Widget build(BuildContext context) {
     final formattedDate = DateFormat(
@@ -48,8 +50,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final lng = widget.post.longitude;
     final bool isLocationValid =
         (lat >= -90 && lat <= 90) && (lng >= -180 && lng <= 180);
+    // ✅ latlong2 대신 google_maps_flutter의 LatLng를 사용
     final LatLng? postLocation = isLocationValid ? LatLng(lat, lng) : null;
 
+    // ... (Scaffold 및 나머지 build 메소드 구조는 거의 동일) ...
     return Scaffold(
       appBar: AppBar(
         title: const Text('게시글 상세'),
@@ -158,6 +162,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
+  // ... (_buildChatButton, _buildContentCard 등 다른 위젯 빌더는 변경 없음) ...
   Widget _buildChatButton() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
@@ -219,7 +224,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               (_) => ChatScreen(
                                 roomId: roomData['id'],
                                 otherUserName: widget.post.author.username,
-                                // ✅ 수정된 부분: 필수 파라미터인 currentUserId를 전달합니다.
                                 currentUserId: currentUser.id,
                               ),
                         ),
@@ -326,38 +330,33 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
+  // ✅ 변경: FlutterMap 대신 GoogleMap을 사용하도록 위젯 수정
   Widget _buildMapWidget(LatLng location, bool isFullscreen) {
-    return FlutterMap(
-      options: MapOptions(
-        center: location,
+    return GoogleMap(
+      // 지도 초기 카메라 위치 설정
+      initialCameraPosition: CameraPosition(
+        target: location,
         zoom: isFullscreen ? 14.0 : 16.0,
-        interactiveFlags:
-            isFullscreen ? InteractiveFlag.all : InteractiveFlag.none,
       ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          subdomains: const ['a', 'b', 'c'],
+      // 지도에 표시할 마커 설정
+      markers: {
+        Marker(
+          markerId: const MarkerId('postLocation'), // 마커의 고유 ID
+          position: location, // 마커의 위치
         ),
-        MarkerLayer(
-          markers: [
-            Marker(
-              width: 80,
-              height: 80,
-              point: location,
-              builder:
-                  (ctx) => const Icon(
-                    Icons.location_pin,
-                    color: Colors.red,
-                    size: 40,
-                  ),
-            ),
-          ],
-        ),
-      ],
+      },
+      // 전체 화면이 아닐 때는 지도 상호작용 비활성화
+      zoomGesturesEnabled: isFullscreen,
+      scrollGesturesEnabled: isFullscreen,
+      tiltGesturesEnabled: isFullscreen,
+      rotateGesturesEnabled: isFullscreen,
+      // 지도 하단의 Google 로고나 컨트롤 버튼 제거
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: false,
     );
   }
 
+  // ... (나머지 _buildInfoCard, _buildInfoRow, _buildInvalidLocationCard 함수는 변경 없음) ...
   Widget _buildInfoCard({
     required IconData icon,
     required String label,
