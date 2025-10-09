@@ -42,9 +42,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
         final room = rooms[i];
         print('🔍 채팅방 $i - ID: ${room.id}, Post 존재: ${room.post != null}');
         if (room.post != null) {
-          print('🔍   Post 제목: ${room.post.title}');
-          print('🔍   Post 타입: ${room.post.type}');
-          print('🔍   Post 가격: ${room.post.price}');
+          print('🔍   Post 제목: ${room.post!.title}');
+          print('🔍   Post 타입: ${room.post!.type}');
+          print('🔍   Post 가격: ${room.post!.price}');
         }
       }
 
@@ -212,62 +212,74 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     const SizedBox(height: 4),
                     
                     // 게시글 정보
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: room.post.type == 'sale' 
-                            ? const Color(0xFFF0F8FF) 
-                            : const Color(0xFFFFF8F0),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: room.post.type == 'sale'
-                              ? const Color(0xFF4A90E2)
-                              : const Color(0xFFFF8C00),
-                          width: 0.5,
+                    if (room.post != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: room.post!.type == 'sale' 
+                              ? const Color(0xFFF0F8FF) 
+                              : const Color(0xFFFFF8F0),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: room.post!.type == 'sale'
+                                ? const Color(0xFF4A90E2)
+                                : const Color(0xFFFF8C00),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              room.typeLabel,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: room.post!.type == 'sale'
+                                    ? const Color(0xFF4A90E2)
+                                    : const Color(0xFFFF8C00),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              room.priceText,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: room.post!.type == 'sale'
+                                    ? const Color(0xFF4A90E2)
+                                    : const Color(0xFFFF8C00),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            room.typeLabel,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: room.post.type == 'sale'
-                                  ? const Color(0xFF4A90E2)
-                                  : const Color(0xFFFF8C00),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            room.priceText,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: room.post.type == 'sale'
-                                  ? const Color(0xFF4A90E2)
-                                  : const Color(0xFFFF8C00),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 6),
+                      
+                      // 게시글 제목
+                      Text(
+                        room.title,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    
-                    // 게시글 제목
-                    Text(
-                      room.title,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black54,
+                    ] else ...[
+                      // 게시글 정보가 없을 때
+                      Text(
+                        '일반 채팅',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[500],
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    ],
                   ],
                 ),
               ),

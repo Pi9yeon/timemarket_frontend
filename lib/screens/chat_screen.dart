@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../services/chat_service.dart';
+import '../services/trade_service.dart';
 import '../models/post_model.dart';
+import '../models/trade_model.dart';
+import '../widgets/trade_widgets.dart';
 
 class ChatScreen extends StatefulWidget {
   final int roomId;
@@ -27,12 +30,14 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
+  final TradeManager _tradeManager = TradeManager();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   WebSocketChannel? _channel;
 
   List<Map<String, dynamic>> _messages = [];
+  List<TradeRequest> _tradeRequests = [];
   bool _isLoading = true;
 
   @override
@@ -43,46 +48,248 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _initializeChat() async {
-    final messageHistory = await _chatService.getMessages(widget.roomId);
-    if (messageHistory != null) {
+    print(_chatService.debugInfo); // 디버그 정보 출력
+    
+    try {
+      // 메시지 히스토리 로드
+      final messageHistory = await _chatService.getMessages(widget.roomId);
+      if (messageHistory != null && messageHistory.isNotEmpty) {
+        setState(() {
+          _messages = List<Map<String, dynamic>>.from(messageHistory);
+        });
+      } else {
+        setState(() {
+          _messages = [];
+        });
+      }
+
+      // 거래 요청 히스토리 로드
+      await _tradeManager.loadTradeRequests(widget.roomId);
       setState(() {
-        _messages = List<Map<String, dynamic>>.from(messageHistory);
+        final loadedRequests = _tradeManager.tradeRequests;
+        _tradeRequests = loadedRequests != null ? List.from(loadedRequests) : [];
         _isLoading = false;
       });
       _scrollToBottom();
-    } else {
-      setState(() => _isLoading = false);
+    } catch (e) {
+      print('채팅 초기화 오류: $e');
+      setState(() {
+        _messages = [];
+        _tradeRequests = [];
+        _isLoading = false;
+      });
     }
 
+    // WebSocket 연결
     _channel = await _chatService.connect(widget.roomId);
-
-    _channel?.stream.listen((message) {
-      // ✅ 백엔드에서 오는 데이터는 이제 항상 일관된 JSON 형식이므로 그대로 디코딩합니다.
-      final newMessage = jsonDecode(message);
-
-      // 중복 메시지 방지 (이미 목록에 있는 메시지인지 확인)
-      bool isDuplicate = _messages.any((m) => m['id'] == newMessage['id']);
-      if (!isDuplicate) {
-        setState(() {
-          _messages.add(newMessage);
-        });
-        _scrollToBottom();
+    
+    if (_channel == null) {
+      print('❌ 웹소켓 연결 실패 - 채팅을 사용할 수 없습니다.');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('채팅 서버 연결에 실패했습니다. 네트워크를 확인해주세요.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
-    });
+      return;
+    }
+    
+    _tradeManager.setWebSocketChannel(_channel);
+
+    // 거래 관련 핸들러 등록
+    _tradeManager.addTradeRequestHandler(_handleNewTradeRequest);
+    _tradeManager.addTradeUpdateHandler(_handleTradeUpdate);
+    _tradeManager.addErrorHandler(_handleTradeError);
+
+    _channel?.stream.listen(
+      (message) {
+        try {
+          print('📥 수신된 WebSocket 메시지: $message');
+          final messageData = jsonDecode(message);
+          
+          // 메시지 타입 확인
+          if (messageData['type'] == 'chat_message' && messageData['data'] != null) {
+            // 일반 채팅 메시지 처리
+            bool isDuplicate = _messages.any((m) => 
+              m['id'] != null && messageData['data']['id'] != null && 
+              m['id'] == messageData['data']['id']);
+            if (!isDuplicate) {
+              setState(() {
+                _messages.add(messageData['data']);
+              });
+              _scrollToBottom();
+              print('✅ 새 메시지 추가됨: ${messageData['data']['message']}');
+            } else {
+              print('⚠️ 중복 메시지 무시됨');
+            }
+          } else {
+            // 거래 관련 메시지 처리
+            _tradeManager.handleWebSocketMessage(message);
+          }
+        } catch (e) {
+          print('❌ WebSocket 메시지 처리 오류: $e');
+          print('❌ 문제가 된 메시지: $message');
+        }
+      },
+      onError: (error) {
+        print('❌ WebSocket 스트림 오류: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('채팅 연결에 문제가 발생했습니다. 새로고침해주세요.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      },
+      onDone: () {
+        print('⚠️ WebSocket 연결이 종료되었습니다.');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('채팅 연결이 끊어졌습니다. 새로고침해주세요.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      },
+    );
   }
 
   void _sendMessage() {
-    if (_messageController.text.trim().isEmpty || _channel == null) return;
+    if (_messageController.text.trim().isEmpty) {
+      print('⚠️ 빈 메시지는 전송할 수 없습니다.');
+      return;
+    }
+    
+    if (_channel == null) {
+      print('❌ 웹소켓 연결이 없습니다. 메시지를 전송할 수 없습니다.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('채팅 서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    final message = {'message': _messageController.text.trim()};
-    _channel!.sink.add(jsonEncode(message));
+    final messageText = _messageController.text.trim();
+    final message = {
+      'type': 'chat',
+      'message': messageText
+    };
+    
+    try {
+      final encodedMessage = jsonEncode(message);
+      print('📤 메시지 전송 시도: $encodedMessage');
+      _channel!.sink.add(encodedMessage);
+      print('✅ 메시지 전송 완료: "$messageText"');
+      _messageController.clear();
+    } catch (e) {
+      print('❌ 메시지 전송 실패: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('메시지 전송에 실패했습니다. 다시 시도해주세요.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
-    _messageController.clear();
+  // 거래 관련 핸들러 메서드들
+  void _handleNewTradeRequest(TradeRequest request) {
+    setState(() {
+      _tradeRequests = _tradeRequests ?? [];
+      _tradeRequests.add(request);
+    });
+    _scrollToBottom();
+    
+    // 알림 표시
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('새로운 거래 요청이 도착했습니다'),
+        backgroundColor: const Color(0xFF4A90E2),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _handleTradeUpdate(TradeRequest updatedRequest) {
+    setState(() {
+      _tradeRequests = _tradeRequests ?? [];
+      final index = _tradeRequests.indexWhere((r) => r.id == updatedRequest.id);
+      if (index != -1) {
+        _tradeRequests[index] = updatedRequest;
+      }
+    });
+    
+    // 거래 완료/거절 알림
+    if (updatedRequest.isCompleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('거래가 성사되었습니다! 🎉'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else if (updatedRequest.isRejected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('거래가 거절되었습니다'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _handleTradeError(String error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // 거래 요청 생성
+  void _showCreateTradeRequestDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => CreateTradeRequestDialog(
+        initialPrice: widget.post?.price.toDouble(),
+        onSubmit: (price, hours, message) {
+          _tradeManager.createTradeRequest(
+            widget.roomId,
+            price,
+            hours,
+            message,
+          );
+        },
+      ),
+    );
+  }
+
+  // 거래 수락
+  void _acceptTrade(TradeRequest request) {
+    _tradeManager.acceptTrade(request.id, message: '거래를 수락합니다.');
+  }
+
+  // 거래 거절
+  void _rejectTrade(TradeRequest request) {
+    _tradeManager.rejectTrade(request.id, message: '거래를 거절합니다.');
   }
 
   @override
   void dispose() {
     _channel?.sink.close();
+    _tradeManager.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -132,7 +339,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 // 게시글 정보 카드 (항상 표시)
                 _buildPostInfoCard(),
                 
-                // 메시지 목록
+                // 메시지 및 거래 요청 목록
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,
@@ -140,19 +347,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       horizontal: 16.0,
                       vertical: 8.0,
                     ),
-                    itemCount: _messages.length,
+                    itemCount: _getCombinedItemCount(),
                     itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final isMe = message['sender']['id'] == widget.currentUserId;
-                      final timestamp = message['timestamp'] != null
-                          ? DateTime.parse(message['timestamp']).toLocal()
-                          : DateTime.now();
-                      
-                      return _buildMessageBubble(
-                        isMe,
-                        message['message'],
-                        timestamp,
-                      );
+                      return _buildCombinedItem(index);
                     },
                   ),
                 ),
@@ -160,6 +357,95 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
     );
+  }
+
+  // 메시지와 거래 요청을 시간순으로 정렬하여 통합 표시
+  int _getCombinedItemCount() {
+    try {
+      final messagesCount = _messages?.length ?? 0;
+      final tradeRequestsCount = _tradeRequests?.length ?? 0;
+      return messagesCount + tradeRequestsCount;
+    } catch (e) {
+      print('_getCombinedItemCount 오류: $e');
+      return 0;
+    }
+  }
+
+  Widget _buildCombinedItem(int index) {
+    try {
+      // 모든 아이템을 시간순으로 정렬
+      final allItems = <Map<String, dynamic>>[];
+      
+      // 메시지 추가 (null 체크 포함)
+      if (_messages != null && _messages.isNotEmpty) {
+        for (final message in _messages) {
+          if (message != null && message['timestamp'] != null) {
+            try {
+              allItems.add({
+                'type': 'message',
+                'data': message,
+                'timestamp': DateTime.parse(message['timestamp']),
+              });
+            } catch (e) {
+              print('메시지 타임스탬프 파싱 오류: $e');
+              // 파싱 실패 시 현재 시간 사용
+              allItems.add({
+                'type': 'message',
+                'data': message,
+                'timestamp': DateTime.now(),
+              });
+            }
+          }
+        }
+      }
+      
+      // 거래 요청 추가 (null 체크 포함)
+      if (_tradeRequests != null && _tradeRequests.isNotEmpty) {
+        for (final trade in _tradeRequests) {
+          if (trade != null) {
+            // createdAt은 DateTime이므로 항상 존재
+            allItems.add({
+              'type': 'trade',
+              'data': trade,
+              'timestamp': trade.createdAt,
+            });
+          }
+        }
+      }
+      
+      // 시간순 정렬
+      allItems.sort((a, b) => (a['timestamp'] as DateTime).compareTo(b['timestamp'] as DateTime));
+      
+      if (index >= allItems.length) return const SizedBox.shrink();
+      
+      final item = allItems[index];
+      
+      if (item['type'] == 'message') {
+        final message = item['data'] as Map<String, dynamic>;
+        final isMe = message['sender'] != null && message['sender']['id'] == widget.currentUserId;
+        final timestamp = item['timestamp'] as DateTime;
+        
+        return _buildMessageBubble(
+          isMe,
+          message['message'] ?? '',
+          timestamp,
+        );
+      } else {
+        final tradeRequest = item['data'] as TradeRequest;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: TradeRequestCard(
+            tradeRequest: tradeRequest,
+            currentUserId: widget.currentUserId,
+            onAccept: () => _acceptTrade(tradeRequest),
+            onReject: () => _rejectTrade(tradeRequest),
+          ),
+        );
+      }
+    } catch (e) {
+      print('_buildCombinedItem 오류: $e');
+      return const SizedBox.shrink();
+    }
   }
 
   Widget _buildPostInfoCard() {
@@ -434,24 +720,9 @@ class _ChatScreenState extends State<ChatScreen> {
       child: SafeArea(
         child: Row(
           children: [
-            // 추가 기능 버튼 (이미지, 파일 등)
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.add,
-                  size: 20,
-                  color: Colors.grey[600],
-                ),
-                onPressed: () {
-                  // 추가 기능 (이미지, 파일 첨부 등)
-                },
-              ),
+            // 거래 요청 버튼
+            TradeRequestButton(
+              onPressed: _showCreateTradeRequestDialog,
             ),
             const SizedBox(width: 8.0),
             

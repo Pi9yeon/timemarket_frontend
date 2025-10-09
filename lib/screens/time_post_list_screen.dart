@@ -48,9 +48,8 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
     );
 
     if (postsData != null) {
-      final parsedPosts =
-          (postsData as List)
-              .map((postJson) => Post.fromJson(postJson))
+      final parsedPosts = postsData
+              .map<Post>((postJson) => Post.fromJson(postJson))
               .toList();
 
       parsedPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));

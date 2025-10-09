@@ -7,6 +7,9 @@ class User {
   final String username;
   final String email;
   final String? profileImageUrl; // ✅ 프로필 이미지 URL 필드 (null 가능)
+  
+  // nickname getter 추가 (username과 동일)
+  String get nickname => username;
 
   // ✅ 프로필 화면에 필요한 추가 필드들
   final double timeCredit; // 사용자가 보유한 시간 크레딧 (Time Credit)
@@ -41,5 +44,18 @@ class User {
       rating: (json['rating'] ?? 0.0).toDouble(),
       skillsAndRequests: json['skills_and_requests'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nickname': username, // 백엔드 필드명에 맞춰 'nickname'으로 변환
+      'email': email,
+      'profile_image': profileImageUrl,
+      'time_credit': timeCredit,
+      'cumulative_time': cumulativeTime,
+      'rating': rating,
+      'skills_and_requests': skillsAndRequests,
+    };
   }
 }

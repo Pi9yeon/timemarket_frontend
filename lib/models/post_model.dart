@@ -38,4 +38,18 @@ class Post {
       author: User.fromJson(json['user']),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'latitude': latitude,
+      'longitude': longitude,
+      'type': type,
+      'price': price,
+      'created_at': createdAt.toIso8601String(),
+      'user': author.toJson(),
+    };
+  }
 }

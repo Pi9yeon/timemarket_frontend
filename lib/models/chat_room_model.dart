@@ -35,14 +35,14 @@ class Message {
 
 class ChatRoom {
   final int id;
-  final Post post;
+  final Post? post; // null 허용으로 변경
   final User? otherUser; // users 배열 대신 other_user 단일 객체
   final Message? lastMessage; // 마지막 메시지 추가
   final DateTime createdAt;
 
   ChatRoom({
     required this.id,
-    required this.post,
+    this.post, // required 제거
     this.otherUser,
     this.lastMessage,
     required this.createdAt,
@@ -56,7 +56,7 @@ class ChatRoom {
     
     return ChatRoom(
       id: json['id'],
-      post: Post.fromJson(json['post']),
+      post: json['post'] != null ? Post.fromJson(json['post']) : null,
       otherUser: json['other_user'] != null 
           ? User.fromJson(json['other_user']) 
           : null,
@@ -77,19 +77,21 @@ class ChatRoom {
   }
 
   // 채팅방 제목 생성 (게시글 제목 기반)
-  String get title => post.title;
+  String get title => post?.title ?? '일반 채팅';
 
   // 채팅방 설명 생성 (게시글 설명 기반)
-  String get description => post.description;
+  String get description => post?.description ?? '채팅방';
 
   // 가격 정보
-  String get priceText => '${post.price.toString().replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-    (Match m) => '${m[1]},',
-  )}원';
+  String get priceText => post != null 
+    ? '${post!.price.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]},',
+      )}원'
+    : '가격 정보 없음';
 
   // 게시글 타입에 따른 라벨
-  String get typeLabel => post.type == 'sale' ? '판매' : '구매';
+  String get typeLabel => post?.type == 'sale' ? '판매' : '구매';
 
   // 마지막 메시지 텍스트 (새로 추가)
   String get lastMessageText => lastMessage?.message ?? '메시지 없음';

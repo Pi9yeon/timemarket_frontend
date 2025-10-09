@@ -12,6 +12,14 @@ class ChatService {
   final String _wsBaseUrl = _baseUrl
       .replaceFirst('http', 'ws')
       .replaceFirst('/api', '');
+      
+  // 디버그용 URL 확인 메서드
+  String get debugInfo => '''
+🔍 ChatService 연결 정보:
+- HTTP Base URL: $_baseUrl
+- WebSocket Base URL: $_wsBaseUrl
+- 예상 WebSocket URL 형식: $_wsBaseUrl/ws/chat/[roomId]/?token=[token]
+  ''';
 
   ChatService() {
     _dio.interceptors.add(
@@ -95,17 +103,28 @@ class ChatService {
   Future<WebSocketChannel?> connect(int roomId) async {
     final token = await AuthService().getToken();
     if (token == null) {
-      print('인증 토큰이 없어 채팅 서버에 연결할 수 없습니다.');
+      print('❌ 인증 토큰이 없어 채팅 서버에 연결할 수 없습니다.');
       return null;
     }
 
     final url = '$_wsBaseUrl/ws/chat/$roomId/?token=$token';
+    print('🔗 웹소켓 연결 시도: $url');
 
     try {
       final channel = WebSocketChannel.connect(Uri.parse(url));
+      
+      // 연결 상태 확인을 위한 테스트 메시지 전송
+      channel.ready.then((_) {
+        print('✅ 웹소켓 연결 성공: Room $roomId');
+        // 연결 확인 메시지 전송
+        channel.sink.add('{"type": "ping"}');
+      }).catchError((error) {
+        print('❌ 웹소켓 연결 실패: $error');
+      });
+      
       return channel;
     } catch (e) {
-      print('$roomId번 채팅방 연결 실패: $e');
+      print('❌ $roomId번 채팅방 연결 실패: $e');
       return null;
     }
   }
