@@ -2,6 +2,7 @@
 
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:js/js.dart';
 import 'screens/login_screen.dart';
 import 'screens/time_post_map_screen.dart';
@@ -17,25 +18,26 @@ class FlutterConfiguration {
 @JS('window.flutterConfiguration')
 external FlutterConfiguration? get flutterConfiguration;
 
-void main() {
-  // 1. API 키 가져오기
-  const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+void main() async {
+  // 1. 환경변수 로드
+  await dotenv.load(fileName: ".env");
+  
+  // 2. API 키 가져오기
+  final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
 
-  // 2. API 키가 있을 경우 스크립트 동적 삽입
+  // 3. API 키가 있을 경우 스크립트 동적 삽입
   if (apiKey.isNotEmpty) {
     final script =
         html.ScriptElement()
-          ..src = 'https://maps.googleapis.com/maps/api/js?key=$apiKey'
+          ..src = 'https://maps.googleapis.com/maps/api/js?key=$apiKey&loading=async'
           ..async = true
           ..defer = true;
     html.document.head?.append(script);
   } else {
-    print(
-      'Google Maps API key is not defined. Please provide it via --dart-define=GOOGLE_MAPS_API_KEY=YOUR_KEY',
-    );
+    print('Google Maps API key is not defined in .env file');
   }
 
-  // 3. 앱 실행
+  // 4. 앱 실행
   runApp(MyApp());
 }
 

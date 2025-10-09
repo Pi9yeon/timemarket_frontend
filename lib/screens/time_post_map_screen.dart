@@ -149,23 +149,57 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _loading
-        ? const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6F00)),
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6F00)),
+        ),
+      );
+    }
+
+    try {
+      return GoogleMap(
+        initialCameraPosition: _initialCamera,
+        onMapCreated: (GoogleMapController controller) {
+          _controller.complete(controller);
+        },
+        markers: _buildMarkers(),
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
+        zoomControlsEnabled: true,
+        mapToolbarEnabled: false,
+        compassEnabled: true,
+      );
+    } catch (e) {
+      print('Google Maps 로딩 오류: $e');
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.map_outlined,
+              size: 64,
+              color: Colors.grey,
             ),
-          )
-        : GoogleMap(
-            initialCameraPosition: _initialCamera,
-            onMapCreated: (GoogleMapController controller) {
-              _controller.complete(controller);
-            },
-            markers: _buildMarkers(),
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            zoomControlsEnabled: true,
-            mapToolbarEnabled: false,
-            compassEnabled: true,
-          );
+            SizedBox(height: 16),
+            Text(
+              '지도를 불러올 수 없습니다',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '페이지를 새로고침해주세요',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

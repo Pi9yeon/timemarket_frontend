@@ -148,15 +148,7 @@ class _ChatScreenState extends State<ChatScreen> {
       },
       onDone: () {
         print('⚠️ WebSocket 연결이 종료되었습니다.');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('채팅 연결이 끊어졌습니다. 새로고침해주세요.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 5),
-            ),
-          );
-        }
+        // dispose 중에는 ScaffoldMessenger 사용하지 않음
       },
     );
   }
