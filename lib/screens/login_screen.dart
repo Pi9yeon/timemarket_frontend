@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'signup_screen.dart';
-import 'login_screen.dart'; // LoginScreen 경로 맞게 import 꼭 해주세요
 import '../screens/time_post_map_screen.dart';
-import 'time_post_list_screen.dart'; // 새로 만든 화면 import
 
 // LoginScreen 클래스는 사용자가 로그인 정보를 입력하고,
 // 로그인 처리를 담당하는 화면입니다.

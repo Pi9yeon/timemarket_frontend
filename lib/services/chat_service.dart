@@ -2,6 +2,7 @@
 
 import 'package:dio/dio.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import '../models/chat_room_model.dart';
 import 'auth_service.dart';
 
 const String _baseUrl = 'http://localhost:8000/api';
@@ -44,12 +45,35 @@ class ChatService {
     return null;
   }
 
-  Future<List<dynamic>?> getMyChatRooms() async {
+  Future<List<ChatRoom>?> getMyChatRooms() async {
     try {
       final response = await _dio.get('$_baseUrl/chat/match/my-chats/');
-      return response.data;
+      print('🔍 백엔드 채팅방 응답: ${response.data}'); // 디버그 출력
+      
+      if (response.data is List) {
+        final chatRooms = (response.data as List)
+            .where((roomJson) => roomJson != null)
+            .map((roomJson) {
+              try {
+                print('🔍 개별 채팅방 데이터: $roomJson'); // 디버그 출력
+                final chatRoom = ChatRoom.fromJson(roomJson);
+                print('🔍 파싱된 채팅방 - ID: ${chatRoom.id}, Post: ${chatRoom.post}'); // 디버그 출력
+                return chatRoom;
+              } catch (e) {
+                print('❌ 채팅방 파싱 오류: $e, 데이터: $roomJson');
+                return null;
+              }
+            })
+            .where((room) => room != null)
+            .cast<ChatRoom>()
+            .toList();
+        
+        print('🔍 최종 채팅방 목록 개수: ${chatRooms.length}'); // 디버그 출력
+        return chatRooms;
+      }
+      return [];
     } on DioException catch (e) {
-      print('내 채팅방 목록 조회 실패: ${e.response?.data}');
+      print('❌ 내 채팅방 목록 조회 실패: ${e.response?.data}');
       return null;
     }
   }
