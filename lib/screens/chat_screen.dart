@@ -96,7 +96,7 @@ class _ChatScreenState extends State<ChatScreen> {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
-      }
+      } 
     });
   }
 
