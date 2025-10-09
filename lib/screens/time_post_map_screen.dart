@@ -32,7 +32,12 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
   @override
   void initState() {
     super.initState();
-    _loadNearbyPosts();
+    // 위젯이 완전히 빌드된 후에 데이터 로드
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadNearbyPosts();
+      }
+    });
   }
 
   Future<void> _loadNearbyPosts() async {
@@ -150,9 +155,24 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6F00)),
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6F00)),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '지도를 불러오는 중...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }

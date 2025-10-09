@@ -39,6 +39,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, dynamic>> _messages = [];
   List<TradeRequest> _tradeRequests = [];
   bool _isLoading = true;
+  bool _isLoadingTradeRequests = true;
 
   @override
   void initState() {
@@ -49,6 +50,32 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _initializeChat() async {
     print(_chatService.debugInfo); // 디버그 정보 출력
+    
+    // TradeManager 콜백 설정
+    _tradeManager.setOnTradeRequestsChanged((requests) {
+      if (mounted) {
+        setState(() {
+          _tradeRequests = List.from(requests);
+          _isLoadingTradeRequests = false; // 거래 요청 로딩 완료
+        });
+        _scrollToBottom();
+      }
+    });
+
+    _tradeManager.setOnError((error) {
+      if (mounted) {
+        setState(() {
+          _isLoadingTradeRequests = false; // 에러 발생 시에도 로딩 완료 처리
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    });
     
     try {
       // 메시지 히스토리 로드
@@ -63,11 +90,11 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
 
-      // 거래 요청 히스토리 로드
+      // 거래 요청 히스토리 로드 (콜백을 통해 자동으로 UI 업데이트됨)
       await _tradeManager.loadTradeRequests(widget.roomId);
+      
+      // 로딩 완료
       setState(() {
-        final loadedRequests = _tradeManager.tradeRequests;
-        _tradeRequests = loadedRequests != null ? List.from(loadedRequests) : [];
         _isLoading = false;
       });
       _scrollToBottom();
@@ -77,7 +104,19 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages = [];
         _tradeRequests = [];
         _isLoading = false;
+        _isLoadingTradeRequests = false; // 에러 시에도 로딩 완료 처리
       });
+      
+      // 사용자에게 오류 알림
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('채팅을 불러오는데 실패했습니다. 새로고침해주세요.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
 
     // WebSocket 연결
@@ -99,7 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
     
     _tradeManager.setWebSocketChannel(_channel);
 
-    // 거래 관련 핸들러 등록
+    // 거래 관련 핸들러 등록 (WebSocket용)
     _tradeManager.addTradeRequestHandler(_handleNewTradeRequest);
     _tradeManager.addTradeUpdateHandler(_handleTradeUpdate);
     _tradeManager.addErrorHandler(_handleTradeError);
@@ -193,61 +232,58 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 거래 관련 핸들러 메서드들
+  // 거래 관련 핸들러 메서드들 (WebSocket 전용)
   void _handleNewTradeRequest(TradeRequest request) {
-    setState(() {
-      _tradeRequests = _tradeRequests ?? [];
-      _tradeRequests.add(request);
-    });
+    // 상태 업데이트는 TradeManager의 콜백에서 처리됨
     _scrollToBottom();
     
     // 알림 표시
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('새로운 거래 요청이 도착했습니다'),
-        backgroundColor: const Color(0xFF4A90E2),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _handleTradeUpdate(TradeRequest updatedRequest) {
-    setState(() {
-      _tradeRequests = _tradeRequests ?? [];
-      final index = _tradeRequests.indexWhere((r) => r.id == updatedRequest.id);
-      if (index != -1) {
-        _tradeRequests[index] = updatedRequest;
-      }
-    });
-    
-    // 거래 완료/거절 알림
-    if (updatedRequest.isCompleted) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('거래가 성사되었습니다! 🎉'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } else if (updatedRequest.isRejected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('거래가 거절되었습니다'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
+        const SnackBar(
+          content: Text('새로운 거래 요청이 도착했습니다'),
+          backgroundColor: Color(0xFF4A90E2),
+          duration: Duration(seconds: 2),
         ),
       );
     }
   }
 
+  void _handleTradeUpdate(TradeRequest updatedRequest) {
+    // 상태 업데이트는 TradeManager의 콜백에서 처리됨
+    
+    // 거래 완료/거절 알림
+    if (mounted) {
+      if (updatedRequest.isCompleted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('거래가 성사되었습니다! 🎉'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else if (updatedRequest.isRejected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('거래가 거절되었습니다'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   void _handleTradeError(String error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(error),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   // 거래 요청 생성
@@ -354,9 +390,10 @@ class _ChatScreenState extends State<ChatScreen> {
   // 메시지와 거래 요청을 시간순으로 정렬하여 통합 표시
   int _getCombinedItemCount() {
     try {
-      final messagesCount = _messages?.length ?? 0;
-      final tradeRequestsCount = _tradeRequests?.length ?? 0;
-      return messagesCount + tradeRequestsCount;
+      final messagesCount = _messages.length;
+      final tradeRequestsCount = _tradeRequests.length;
+      final loadingIndicatorCount = _isLoadingTradeRequests && (messagesCount > 0 || tradeRequestsCount > 0) ? 1 : 0;
+      return messagesCount + tradeRequestsCount + loadingIndicatorCount;
     } catch (e) {
       print('_getCombinedItemCount 오류: $e');
       return 0;
@@ -368,8 +405,8 @@ class _ChatScreenState extends State<ChatScreen> {
       // 모든 아이템을 시간순으로 정렬
       final allItems = <Map<String, dynamic>>[];
       
-      // 메시지 추가 (null 체크 포함)
-      if (_messages != null && _messages.isNotEmpty) {
+      // 메시지 추가
+      if (_messages.isNotEmpty) {
         for (final message in _messages) {
           if (message != null && message['timestamp'] != null) {
             try {
@@ -391,18 +428,25 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
       
-      // 거래 요청 추가 (null 체크 포함)
-      if (_tradeRequests != null && _tradeRequests.isNotEmpty) {
+      // 거래 요청 추가
+      if (_tradeRequests.isNotEmpty) {
         for (final trade in _tradeRequests) {
-          if (trade != null) {
-            // createdAt은 DateTime이므로 항상 존재
-            allItems.add({
-              'type': 'trade',
-              'data': trade,
-              'timestamp': trade.createdAt,
-            });
-          }
+          // createdAt은 DateTime이므로 항상 존재
+          allItems.add({
+            'type': 'trade',
+            'data': trade,
+            'timestamp': trade.createdAt,
+          });
         }
+      }
+      
+      // 거래 요청 로딩 중일 때 로딩 인디케이터 추가
+      if (_isLoadingTradeRequests && allItems.isNotEmpty) {
+        allItems.add({
+          'type': 'loading_trade',
+          'data': null,
+          'timestamp': DateTime.now(),
+        });
       }
       
       // 시간순 정렬
@@ -422,6 +466,8 @@ class _ChatScreenState extends State<ChatScreen> {
           message['message'] ?? '',
           timestamp,
         );
+      } else if (item['type'] == 'loading_trade') {
+        return _buildTradeLoadingIndicator();
       } else {
         final tradeRequest = item['data'] as TradeRequest;
         return Padding(
@@ -438,6 +484,41 @@ class _ChatScreenState extends State<ChatScreen> {
       print('_buildCombinedItem 오류: $e');
       return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildTradeLoadingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              '거래 요청을 불러오는 중...',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildPostInfoCard() {

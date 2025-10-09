@@ -28,18 +28,43 @@ class TradeService {
   // 거래 요청 목록 조회 (특정 채팅방)
   Future<List<TradeRequest>?> getTradeRequests(int roomId) async {
     try {
+      print('🌐 API 호출: GET $_baseUrl/chat/match/chat/$roomId/trades/');
       final response = await _dio.get(
         '$_baseUrl/chat/match/chat/$roomId/trades/',
       );
       
+      print('📡 API 응답 상태: ${response.statusCode}');
+      print('📦 API 응답 데이터: ${response.data}');
+      print('📊 응답 데이터 타입: ${response.data.runtimeType}');
+      
       if (response.data is List) {
-        return (response.data as List)
-            .map((json) => TradeRequest.fromJson(json))
+        final tradeList = (response.data as List)
+            .map((json) {
+              print('🔍 개별 거래 요청 JSON: $json');
+              return TradeRequest.fromJson(json);
+            })
             .toList();
+        print('✅ 파싱된 거래 요청 개수: ${tradeList.length}');
+        return tradeList;
       }
+      print('⚠️ 응답이 List 타입이 아님');
       return [];
     } on DioException catch (e) {
-      print('거래 요청 목록 조회 실패: ${e.response?.data}');
+      print('❌ 거래 요청 목록 조회 실패: ${e.response?.statusCode}');
+      print('❌ 에러 응답: ${e.response?.data}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 요청 URL: ${e.requestOptions.uri}');
+      print('❌ 요청 헤더: ${e.requestOptions.headers}');
+      
+      // 404 에러인 경우 빈 배열 반환 (채팅방에 거래 요청이 없는 경우)
+      if (e.response?.statusCode == 404) {
+        print('📭 채팅방에 거래 요청이 없음 (404)');
+        return [];
+      }
+      
+      return null;
+    } catch (e) {
+      print('❌ 예상치 못한 에러: $e');
       return null;
     }
   }
@@ -295,6 +320,12 @@ class TradeManager {
   // 현재 채팅방의 거래 요청 목록
   List<TradeRequest> _tradeRequests = [];
   
+  // 상태 변경 콜백들
+  Function(List<TradeRequest>)? _onTradeRequestsChanged;
+  Function(TradeRequest)? _onNewTradeRequest;
+  Function(TradeRequest)? _onTradeUpdate;
+  Function(String)? _onError;
+  
   // 거래 요청 목록 getter
   List<TradeRequest> get tradeRequests => List.unmodifiable(_tradeRequests);
 
@@ -312,15 +343,32 @@ class TradeManager {
   // 거래 요청 목록 로드
   Future<void> loadTradeRequests(int roomId) async {
     try {
+      print('🔄 거래 요청 로드 시작: Room $roomId');
       final requests = await _tradeService.getTradeRequests(roomId);
+      
       if (requests != null) {
         _tradeRequests = requests;
+        if (requests.isNotEmpty) {
+          print('✅ 거래 요청 로드 성공: ${requests.length}개');
+          for (int i = 0; i < requests.length; i++) {
+            print('   📋 거래 요청 ${i + 1}: ID=${requests[i].id}, 상태=${requests[i].status}');
+          }
+        } else {
+          print('📭 거래 요청 목록이 비어있음');
+        }
+        // 상태 변경 콜백 호출
+        _onTradeRequestsChanged?.call(_tradeRequests);
       } else {
         _tradeRequests = [];
+        print('❌ API 호출 실패로 인한 null 응답');
+        _onError?.call('거래 요청을 불러오는데 실패했습니다.');
+        _onTradeRequestsChanged?.call(_tradeRequests);
       }
     } catch (e) {
-      print('거래 요청 로드 실패: $e');
+      print('❌ 거래 요청 로드 중 예외 발생: $e');
       _tradeRequests = [];
+      _onError?.call('거래 요청을 불러오는데 실패했습니다: $e');
+      _onTradeRequestsChanged?.call(_tradeRequests);
     }
   }
 
@@ -330,6 +378,9 @@ class TradeManager {
     final existingIndex = _tradeRequests.indexWhere((r) => r.id == request.id);
     if (existingIndex == -1) {
       _tradeRequests.add(request);
+      print('✅ 새로운 거래 요청 추가: ${request.id}');
+      _onNewTradeRequest?.call(request);
+      _onTradeRequestsChanged?.call(_tradeRequests);
     }
   }
 
@@ -338,6 +389,9 @@ class TradeManager {
     final index = _tradeRequests.indexWhere((r) => r.id == updatedRequest.id);
     if (index != -1) {
       _tradeRequests[index] = updatedRequest;
+      print('✅ 거래 요청 업데이트: ${updatedRequest.id}');
+      _onTradeUpdate?.call(updatedRequest);
+      _onTradeRequestsChanged?.call(_tradeRequests);
     }
   }
 
@@ -373,7 +427,24 @@ class TradeManager {
     _wsManager.handleMessage(message);
   }
 
-  // 핸들러 등록 메서드들
+  // 콜백 등록 메서드들
+  void setOnTradeRequestsChanged(Function(List<TradeRequest>) callback) {
+    _onTradeRequestsChanged = callback;
+  }
+
+  void setOnNewTradeRequest(Function(TradeRequest) callback) {
+    _onNewTradeRequest = callback;
+  }
+
+  void setOnTradeUpdate(Function(TradeRequest) callback) {
+    _onTradeUpdate = callback;
+  }
+
+  void setOnError(Function(String) callback) {
+    _onError = callback;
+  }
+
+  // 기존 핸들러 등록 메서드들 (WebSocket용)
   void addTradeRequestHandler(Function(TradeRequest) handler) {
     _wsManager.addTradeRequestHandler(handler);
   }
@@ -416,5 +487,10 @@ class TradeManager {
   void dispose() {
     _wsManager.dispose();
     _tradeRequests.clear();
+    // 콜백들 정리
+    _onTradeRequestsChanged = null;
+    _onNewTradeRequest = null;
+    _onTradeUpdate = null;
+    _onError = null;
   }
 }

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:js/js.dart';
 import 'screens/login_screen.dart';
-import 'screens/time_post_map_screen.dart';
+import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
 
 // JavaScript의 window 객체에 접근하기 위한 설정
@@ -71,9 +71,9 @@ class MyApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          // 토큰이 존재하면(로그인 상태) 지도 화면으로 바로 이동합니다.
+          // 토큰이 존재하면(로그인 상태) 메인 화면으로 이동합니다.
           if (snapshot.hasData && snapshot.data != null) {
-            return const TimePostMapScreen();
+            return const MainScreen();
           } else {
             // 토큰이 없으면 로그인 화면을 보여줍니다.
             return LoginScreen();

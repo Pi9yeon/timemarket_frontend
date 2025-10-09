@@ -22,6 +22,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _fabAnimationController;
   late Animation<double> _fabAnimation;
+  bool _isInitialized = false;
 
   // 당근마켓 스타일의 컬러 테마
   static const Color carrotOrange = Color(0xFFFF6F00);
@@ -38,6 +39,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
     _fabAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -46,7 +51,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       parent: _fabAnimationController,
       curve: Curves.easeInOut,
     );
-    _fabAnimationController.forward();
+    
+    // 약간의 지연을 두어 UI가 안정적으로 로드되도록 함
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+      _fabAnimationController.forward();
+    }
   }
 
   @override
@@ -57,6 +71,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // 초기화가 완료되지 않았으면 로딩 화면 표시
+    if (!_isInitialized) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6F00)),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       // 당근마켓 스타일의 상단 바
       appBar: _buildAppBar(),
