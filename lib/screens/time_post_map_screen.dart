@@ -3,12 +3,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../services/auth_service.dart';
 import '../services/time_post_service.dart';
-import 'create_post_screen.dart'; // CreatePostScreen 임포트
-import 'login_screen.dart';
-import 'profile_screen.dart';
-import 'time_post_list_screen.dart';
+import '../models/post_model.dart';
+import 'create_post_screen.dart';
+import 'post_detail_screen.dart';
 
 class TimePostMapScreen extends StatefulWidget {
   const TimePostMapScreen({super.key});
@@ -19,7 +17,6 @@ class TimePostMapScreen extends StatefulWidget {
 
 class _TimePostMapScreenState extends State<TimePostMapScreen> {
   final TimePostService _postService = TimePostService();
-  final AuthService _authService = AuthService();
   List<dynamic> _posts = [];
   bool _loading = true;
   final String _postType = 'sale';
@@ -75,7 +72,6 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
   }
 
   Set<Marker> _buildMarkers() {
-    // ... (_buildMarkers 함수는 변경 없음) ...
     final Set<Marker> markers = {};
 
     for (final post in _posts) {
@@ -83,31 +79,35 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
         final lat = (post['latitude'] as num).toDouble();
         final lng = (post['longitude'] as num).toDouble();
         final title = post['title'] as String? ?? '제목 없음';
+        final description = post['description'] as String? ?? '';
+        final price = post['price'] as int? ?? 0;
+        final type = post['type'] as String? ?? 'sale';
         final String markerId = post['id']?.toString() ?? 'marker_${markers.length}';
+        final authorName = post['user']?['username'] as String? ?? '알 수 없음';
 
         if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
           print('잘못된 좌표값으로 인해 마커를 건너뜁니다: 위도=$lat, 경도=$lng');
           continue;
         }
 
+        // 게시글 타입에 따른 마커 색상 설정
+        BitmapDescriptor markerIcon = type == 'sale' 
+            ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+            : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
+
         markers.add(
           Marker(
             markerId: MarkerId(markerId),
             position: LatLng(lat, lng),
+            icon: markerIcon,
+            infoWindow: InfoWindow(
+              title: title,
+              snippet: '${type == 'sale' ? '판매' : '구인'} • ${price}TC • $authorName',
+            ),
             onTap: () {
-              showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: Text(title),
-                  content: Text('위도: $lat\n경도: $lng'),
-                  actions: [
-                    TextButton(
-                      child: const Text('닫기'),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              );
+              print('마커 클릭됨: $title (ID: $markerId)');
+              // 마커 클릭 시 게시글 상세 페이지로 이동
+              _navigateToPostDetail(post);
             },
           ),
         );
@@ -119,66 +119,53 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
     return markers;
   }
 
+  // 게시글 상세 페이지로 이동하는 함수
+  void _navigateToPostDetail(dynamic postData) {
+    try {
+      // 동적 데이터를 Post 모델로 변환
+      final post = Post.fromJson(postData);
+      
+      // MainScreen의 컨텍스트를 찾아서 네비게이션 실행
+      final navigator = Navigator.of(context, rootNavigator: true);
+      navigator.push(
+        MaterialPageRoute(
+          builder: (context) => PostDetailScreen(post: post),
+        ),
+      );
+    } catch (e) {
+      print('게시글 상세 페이지 이동 중 오류 발생: $e');
+      print('게시글 데이터: $postData');
+      
+      // 에러 메시지도 rootNavigator 사용
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('게시글을 불러올 수 없습니다: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        // ... (AppBar 코드는 변경 없음) ...
-        title: const Text('TimeMarket'),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.list),
-            tooltip: '게시글 목록',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TimePostListScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: '마이 페이지',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: '로그아웃',
-            onPressed: () async {
-              await _authService.logout();
-              if (!mounted) return;
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (Route<dynamic> route) => false,
-              );
-            },
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : GoogleMap(
-              initialCameraPosition: _initialCamera,
-              onMapCreated: (GoogleMapController controller) {
-                _controller.complete(controller);
-              },
-              markers: _buildMarkers(),
+    return _loading
+        ? const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6F00)),
             ),
-      // ✅ 2. 글 작성 화면으로 이동하는 FloatingActionButton 추가
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateAndRefresh, // 위에서 만든 함수를 연결
-        tooltip: '게시글 작성',
-        child: const Icon(Icons.add),
-      ),
-    );
+          )
+        : GoogleMap(
+            initialCameraPosition: _initialCamera,
+            onMapCreated: (GoogleMapController controller) {
+              _controller.complete(controller);
+            },
+            markers: _buildMarkers(),
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            zoomControlsEnabled: true,
+            mapToolbarEnabled: false,
+            compassEnabled: true,
+          );
   }
 }

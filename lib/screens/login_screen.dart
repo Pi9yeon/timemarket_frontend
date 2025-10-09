@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'signup_screen.dart';
-import '../screens/time_post_map_screen.dart';
+import 'main_screen.dart';
 
 // LoginScreen 클래스는 사용자가 로그인 정보를 입력하고,
 // 로그인 처리를 담당하는 화면입니다.
@@ -51,11 +51,11 @@ class _LoginScreenState extends State<LoginScreen> {
       // 위젯이 아직 화면에 존재하는지 확인하여 오류를 방지합니다.
       if (!mounted) return;
 
-      // 로그인 성공 후 TimePostMapScreen 화면으로 이동하고, 이전 화면(로그인 화면)을 제거합니다.
+      // 로그인 성공 후 MainScreen 화면으로 이동하고, 이전 화면(로그인 화면)을 제거합니다.
       // 이렇게 하면 사용자가 뒤로 가기 버튼을 눌러도 로그인 화면으로 돌아가지 않습니다.
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const TimePostMapScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     }
     // 로그인 실패 시
