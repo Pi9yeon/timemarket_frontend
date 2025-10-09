@@ -23,6 +23,22 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final UserService _userService = UserService();
   bool _isMapFullscreen = false;
   bool _isChatButtonLoading = false;
+  bool _isCurrentUserAuthor = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfCurrentUserIsAuthor();
+  }
+
+  Future<void> _checkIfCurrentUserIsAuthor() async {
+    final currentUser = await _userService.getMyInfo();
+    if (currentUser != null) {
+      setState(() {
+        _isCurrentUserAuthor = currentUser.id == widget.post.author.id;
+      });
+    }
+  }
 
   // ... (다른 함수들은 변경 없음) ...
   Color _getBadgeColor(String type) {
@@ -60,7 +76,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
       ),
-      bottomNavigationBar: _buildChatButton(),
+      bottomNavigationBar: _isCurrentUserAuthor ? null : _buildChatButton(),
       body: Stack(
         children: [
           SingleChildScrollView(
