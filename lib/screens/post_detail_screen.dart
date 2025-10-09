@@ -241,6 +241,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 roomId: roomData['id'],
                                 otherUserName: widget.post.author.username,
                                 currentUserId: currentUser.id,
+                                post: widget.post, // 게시글 정보 전달 추가
                               ),
                         ),
                       );
