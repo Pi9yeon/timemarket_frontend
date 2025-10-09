@@ -50,3 +50,4 @@ pubspec.lock
 firebase_app_id_file.json
 
 # 기타 민감정보 (API 키 등) 저장하지 말 것!
+.env

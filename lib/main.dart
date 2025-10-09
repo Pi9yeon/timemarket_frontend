@@ -1,11 +1,41 @@
-// lib/main.dart
+// main.dart
 
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
-import 'package:timemarket_frontend/screens/login_screen.dart';
-import 'package:timemarket_frontend/services/auth_service.dart';
-import 'screens/time_post_map_screen.dart'; // ✅ 지도 화면을 기본 홈으로 설정
+import 'package:js/js.dart';
+import 'screens/login_screen.dart';
+import 'screens/time_post_map_screen.dart';
+import 'services/auth_service.dart';
+
+// JavaScript의 window 객체에 접근하기 위한 설정
+@JS()
+@anonymous
+class FlutterConfiguration {
+  external String get GOOGLE_MAPS_API_KEY;
+}
+
+@JS('window.flutterConfiguration')
+external FlutterConfiguration? get flutterConfiguration;
 
 void main() {
+  // 1. API 키 가져오기
+  const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+
+  // 2. API 키가 있을 경우 스크립트 동적 삽입
+  if (apiKey.isNotEmpty) {
+    final script =
+        html.ScriptElement()
+          ..src = 'https://maps.googleapis.com/maps/api/js?key=$apiKey'
+          ..async = true
+          ..defer = true;
+    html.document.head?.append(script);
+  } else {
+    print(
+      'Google Maps API key is not defined. Please provide it via --dart-define=GOOGLE_MAPS_API_KEY=YOUR_KEY',
+    );
+  }
+
+  // 3. 앱 실행
   runApp(MyApp());
 }
 

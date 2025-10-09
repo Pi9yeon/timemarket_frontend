@@ -1,9 +1,22 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// ✅ 1. local.properties 파일을 읽기 위한 코드를 추가합니다.
+// 이 코드는 프로젝트 루트의 local.properties 파일이 있는지 확인하고,
+// 파일이 존재하면 그 안의 모든 속성(properties)을 읽어옵니다.
+val localProperties = java.util.Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.reader().use { reader ->
+        localProperties.load(reader)
+    }
+}
+
+val flutterVersionCode: String by project
+val flutterVersionName: String by project
 
 android {
     namespace = "com.example.timemarket_frontend"
@@ -16,27 +29,23 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "11"
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.timemarket_frontend"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-        manifestPlaceholders += [
-            GOOGLE_MAPS_API_KEY: project.properties.GOOGLE_MAPS_API_KEY
-        ]
+        versionCode = flutterVersionCode.toInt()
+        versionName = flutterVersionName
+
+        // ✅ 2. manifestPlaceholders 문법을 Kotlin 형식으로 수정하고,
+        // 위에서 읽어온 localProperties에서 API 키를 가져옵니다.
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = localProperties.getProperty("google.maps.apiKey")
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
