@@ -7,8 +7,8 @@ import '../services/user_service.dart';
 import '../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
-import 'wallet_screen.dart';
 import 'chat_list_screen.dart'; // ✅ 새로 만든 대화 목록 화면 import
+import 'trade_history_screen.dart'; // ✅ 거래내역 화면 import
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -176,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const WalletScreen()),
+                  MaterialPageRoute(builder: (_) => const TradeHistoryScreen()),
                 );
               },
             ),
@@ -192,11 +192,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 await _userService.authService.logout();
-                if (!mounted) return;
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => LoginScreen()),
-                );
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => LoginScreen()),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,

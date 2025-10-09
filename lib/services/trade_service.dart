@@ -25,7 +25,7 @@ class TradeService {
     );
   }
 
-  // 거래 요청 목록 조회
+  // 거래 요청 목록 조회 (특정 채팅방)
   Future<List<TradeRequest>?> getTradeRequests(int roomId) async {
     try {
       final response = await _dio.get(
@@ -40,6 +40,45 @@ class TradeService {
       return [];
     } on DioException catch (e) {
       print('거래 요청 목록 조회 실패: ${e.response?.data}');
+      return null;
+    }
+  }
+
+  // 사용자의 모든 거래내역 조회
+  Future<List<TradeRequest>?> getUserTradeHistory() async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/trades/history/',
+      );
+      
+      if (response.data is List) {
+        return (response.data as List)
+            .map((json) => TradeRequest.fromJson(json))
+            .toList();
+      }
+      return [];
+    } on DioException catch (e) {
+      print('거래내역 조회 실패: ${e.response?.data}');
+      return null;
+    }
+  }
+
+  // 거래내역 필터링 조회 (상태별)
+  Future<List<TradeRequest>?> getUserTradeHistoryByStatus(String status) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/trades/history/',
+        queryParameters: {'status': status},
+      );
+      
+      if (response.data is List) {
+        return (response.data as List)
+            .map((json) => TradeRequest.fromJson(json))
+            .toList();
+      }
+      return [];
+    } on DioException catch (e) {
+      print('거래내역 필터링 조회 실패: ${e.response?.data}');
       return null;
     }
   }
