@@ -11,6 +11,7 @@ import 'login_screen.dart';
 import 'chat_list_screen.dart';
 import 'trade_history_screen.dart';
 import 'wallet_screen.dart';
+import 'review_list_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -299,21 +300,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // 이메일
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  user.email,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
+              // 이메일 (email이 null이 아닐 때만 표시)
+              if (user.email != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    user.email!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -355,9 +357,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: _buildStatCard(
                   icon: Icons.star_rounded,
                   label: "평점",
-                  value: user.rating.toStringAsFixed(1),
-                  unit: "/ 5.0",
+                  value: user.displayRating.toStringAsFixed(1),
+                  unit: user.ratingCount != null ? "(${user.ratingCount})" : "/ 5.0",
                   color: Colors.amber[700]!,
+                  onTap: () async {
+                    HapticFeedback.lightImpact();
+                    // 리뷰 목록 화면으로 이동
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ReviewListScreen(),
+                      ),
+                    );
+                    // 돌아왔을 때 프로필 새로고침
+                    _fetchUserInfo();
+                  },
                 ),
               ),
             ],
@@ -562,20 +576,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMenuItem(
             icon: Icons.rate_review_rounded,
             iconColor: Colors.blue[600]!,
-            title: "내가 쓴 리뷰",
-            subtitle: "작성한 리뷰 보기",
-            onTap: () {
+            title: "내 리뷰",
+            subtitle: "받은 리뷰 및 작성한 리뷰 보기",
+            onTap: () async {
               HapticFeedback.lightImpact();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('준비 중인 기능입니다'),
-                  backgroundColor: Colors.grey[700],
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ReviewListScreen()),
               );
+              // 돌아왔을 때 프로필 새로고침
+              _fetchUserInfo();
             },
           ),
         ],

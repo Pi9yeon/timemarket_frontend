@@ -33,7 +33,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _usernameController = TextEditingController(text: widget.user.username);
-    _emailController = TextEditingController(text: widget.user.email);
+    _emailController = TextEditingController(text: widget.user.email ?? '');
     _currentPasswordController = TextEditingController();
     _newPasswordController = TextEditingController();
     _confirmPasswordController = TextEditingController();
