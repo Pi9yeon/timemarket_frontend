@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart'; // LatLng 사용을 위해 임포트
+import 'package:flutter/services.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/time_post_service.dart';
-import 'map_picker_screen.dart'; // 방금 만든 화면 임포트
+import 'map_picker_screen.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -22,6 +23,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   String _selectedType = 'sale';
   final TimePostService _timePostService = TimePostService();
   bool _isSubmitting = false;
+  bool _locationSelected = false;
+
+  // 당근마켓 스타일 컬러
+  static const Color carrotOrange = Color(0xFFFF6F00);
+  static const Color carrotLightOrange = Color(0xFFFFE0B2);
 
   @override
   void dispose() {
@@ -33,20 +39,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
-  // ✅ 1. 지도 선택 화면을 띄우는 함수 추가
   Future<void> _openMapPicker() async {
-  // MapPickerScreen으로 이동하고, 결과를 LatLng 타입으로 받기를 기다림
+    HapticFeedback.lightImpact();
     final LatLng? result = await Navigator.of(context).push(
-      // MapPickerScreen() 앞의 const를 제거하여 오류 해결
       MaterialPageRoute(builder: (context) => MapPickerScreen()),
     );
 
-    // 사용자가 위치를 선택하고 돌아왔다면 (null이 아니라면)
     if (result != null) {
       setState(() {
-        // 컨트롤러의 텍스트를 선택된 위도와 경도로 업데이트
         _latitudeController.text = result.latitude.toString();
         _longitudeController.text = result.longitude.toString();
+        _locationSelected = true;
       });
     }
   }
@@ -94,109 +97,358 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('게시글 작성')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              // ... (제목, 설명 입력 필드는 변경 없음) ...
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(labelText: '제목'),
-                validator:
-                    (value) =>
-                        (value == null || value.isEmpty) ? '제목을 입력해주세요.' : null,
-              ),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(labelText: '설명'),
-                maxLines: 3,
-                validator:
-                    (value) =>
-                        (value == null || value.isEmpty) ? '설명을 입력해주세요.' : null,
-              ),
-              const SizedBox(height: 16),
-              // ✅ 2. 위도/경도 입력란을 수정하고 지도 선택 버튼 추가
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _latitudeController,
-                      // 사용자가 직접 수정하지 못하도록 readOnly 설정
-                      readOnly: true,
-                      decoration: const InputDecoration(
-                        labelText: '위도',
-                        hintText: '지도에서 선택하세요',
-                      ),
-                      validator: (value) =>
-                          (value == null || value.isEmpty) ? '위도를 선택해주세요.' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _longitudeController,
-                      // 사용자가 직접 수정하지 못하도록 readOnly 설정
-                      readOnly: true,
-                      decoration: const InputDecoration(
-                        labelText: '경도',
-                        hintText: '지도에서 선택하세요',
-                      ),
-                      validator: (value) =>
-                          (value == null || value.isEmpty) ? '경도를 선택해주세요.' : null,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // 지도 선택 버튼
-              ElevatedButton.icon(
-                onPressed: _openMapPicker,
-                icon: const Icon(Icons.map),
-                label: const Text('지도에서 위치 선택'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[200],
-                  foregroundColor: Colors.black87
-                ),
-              ),
-              
-              // ... (타입, 가격, 등록 버튼은 변경 없음) ...
-              DropdownButtonFormField<String>(
-                value: _selectedType,
-                decoration: const InputDecoration(labelText: '타입'),
-                items: const [
-                  DropdownMenuItem(value: 'sale', child: Text('판매')),
-                  DropdownMenuItem(value: 'request', child: Text('구인')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedType = value;
-                    });
-                  }
-                },
-              ),
-              TextFormField(
-                controller: _priceController,
-                decoration: const InputDecoration(labelText: '가격'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) return '가격을 입력해주세요.';
-                  final val = int.tryParse(value);
-                  if (val == null) return '유효한 숫자를 입력해주세요.';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              _isSubmitting
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(onPressed: _submit, child: const Text('등록')),
-            ],
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.black87),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context);
+          },
+        ),
+        title: const Text(
+          '게시글 작성',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
           ),
+        ),
+        centerTitle: true,
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            // 제목 입력
+            _buildSectionTitle('제목'),
+            const SizedBox(height: 8),
+            _buildTextField(
+              controller: _titleController,
+              hintText: '제목을 입력해주세요',
+              icon: Icons.title_rounded,
+              validator: (value) =>
+                  (value == null || value.isEmpty) ? '제목을 입력해주세요' : null,
+            ),
+            const SizedBox(height: 24),
+
+            // 설명 입력
+            _buildSectionTitle('설명'),
+            const SizedBox(height: 8),
+            _buildTextField(
+              controller: _descriptionController,
+              hintText: '상세한 설명을 입력해주세요',
+              icon: Icons.description_rounded,
+              maxLines: 5,
+              validator: (value) =>
+                  (value == null || value.isEmpty) ? '설명을 입력해주세요' : null,
+            ),
+            const SizedBox(height: 24),
+
+            // 위치 선택
+            _buildSectionTitle('거래 위치'),
+            const SizedBox(height: 8),
+            _buildLocationSelector(),
+            const SizedBox(height: 24),
+
+            // 타입 선택
+            _buildSectionTitle('거래 유형'),
+            const SizedBox(height: 8),
+            _buildTypeSelector(),
+            const SizedBox(height: 24),
+
+            // 가격 입력
+            _buildSectionTitle('가격'),
+            const SizedBox(height: 8),
+            _buildTextField(
+              controller: _priceController,
+              hintText: '가격을 입력해주세요',
+              icon: Icons.attach_money_rounded,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) return '가격을 입력해주세요';
+                final val = int.tryParse(value);
+                if (val == null) return '유효한 숫자를 입력해주세요';
+                return null;
+              },
+            ),
+            const SizedBox(height: 32),
+
+            // 등록 버튼
+            _buildSubmitButton(),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: const TextStyle(fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey[400]),
+        prefixIcon: Icon(icon, color: carrotOrange, size: 22),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[200]!, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: carrotOrange, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.red[300]!, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationSelector() {
+    return Column(
+      children: [
+        // 숨겨진 validator를 위한 필드들
+        Opacity(
+          opacity: 0,
+          child: SizedBox(
+            height: 0,
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _latitudeController,
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? '위치를 선택해주세요' : null,
+                ),
+                TextFormField(
+                  controller: _longitudeController,
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? '위치를 선택해주세요' : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+        // 지도 선택 버튼
+        InkWell(
+          onTap: _openMapPicker,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _locationSelected ? carrotOrange : Colors.grey[200]!,
+                width: _locationSelected ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _locationSelected ? carrotLightOrange : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.location_on_rounded,
+                    color: _locationSelected ? carrotOrange : Colors.grey[600],
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _locationSelected ? '위치 선택 완료' : '지도에서 위치 선택',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: _locationSelected ? carrotOrange : Colors.black87,
+                        ),
+                      ),
+                      if (_locationSelected) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '다시 선택하려면 탭하세요',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '거래할 위치를 지도에서 선택해주세요',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.grey[400],
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTypeSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildTypeOption(
+              label: '판매',
+              value: 'sale',
+              icon: Icons.sell_rounded,
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 50,
+            color: Colors.grey[200],
+          ),
+          Expanded(
+            child: _buildTypeOption(
+              label: '구인',
+              value: 'request',
+              icon: Icons.person_search_rounded,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeOption({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedType == value;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() {
+          _selectedType = value;
+        });
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? carrotOrange : Colors.grey[600],
+              size: 22,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? carrotOrange : Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return _isSubmitting
+        ? Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(carrotOrange),
+              ),
+            ),
+          )
+        : Material(
+            color: carrotOrange,
+            borderRadius: BorderRadius.circular(12),
+            elevation: 2,
+            child: InkWell(
+              onTap: _submit,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: 56,
+                alignment: Alignment.center,
+                child: const Text(
+                  '등록하기',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          );
   }
 }
