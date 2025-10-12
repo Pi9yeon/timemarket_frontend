@@ -474,6 +474,8 @@ class _CreateTradeRequestDialogState extends State<CreateTradeRequestDialog> {
   final _priceController = TextEditingController();
   final _hoursController = TextEditingController();
   final _messageController = TextEditingController();
+  
+  double? _estimatedTotal;
 
   @override
   void initState() {
@@ -484,6 +486,13 @@ class _CreateTradeRequestDialogState extends State<CreateTradeRequestDialog> {
     if (widget.initialHours != null) {
       _hoursController.text = widget.initialHours!.toString();
     }
+    
+    // 입력 필드 변경 감지
+    _priceController.addListener(_calculateEstimatedTotal);
+    _hoursController.addListener(_calculateEstimatedTotal);
+    
+    // 초기 계산
+    _calculateEstimatedTotal();
   }
 
   @override
@@ -492,6 +501,25 @@ class _CreateTradeRequestDialogState extends State<CreateTradeRequestDialog> {
     _hoursController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+  
+  void _calculateEstimatedTotal() {
+    setState(() {
+      final price = double.tryParse(_priceController.text);
+      final hours = double.tryParse(_hoursController.text);
+      
+      if (price != null && hours != null && price > 0 && hours > 0) {
+        _estimatedTotal = price * hours;
+      } else {
+        _estimatedTotal = null;
+      }
+    });
+  }
+  
+  String _formatPrice(double price) {
+    final priceInt = price.toInt();
+    final formatter = NumberFormat('#,###', 'ko_KR');
+    return '${formatter.format(priceInt)}원';
   }
 
   @override
@@ -535,9 +563,14 @@ class _CreateTradeRequestDialogState extends State<CreateTradeRequestDialog> {
                   FilteringTextInputFormatter.digitsOnly,
                 ],
                 decoration: InputDecoration(
-                  labelText: '제안 가격',
-                  hintText: '원하는 가격을 입력하세요',
-                  suffixText: '원',
+                  labelText: '제안 가격 (시급)',
+                  hintText: '원하는 시급을 입력하세요',
+                  suffixText: '원/시간',
+                  helperText: '시간당 지불할 금액을 입력하세요',
+                  helperStyle: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -570,6 +603,11 @@ class _CreateTradeRequestDialogState extends State<CreateTradeRequestDialog> {
                   labelText: '예상 시간',
                   hintText: '예상 소요 시간을 입력하세요',
                   suffixText: '시간',
+                  helperText: '최대 24시간까지 입력 가능합니다',
+                  helperStyle: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -585,6 +623,9 @@ class _CreateTradeRequestDialogState extends State<CreateTradeRequestDialog> {
                   final hours = double.tryParse(value);
                   if (hours == null || hours <= 0) {
                     return '올바른 시간을 입력해주세요';
+                  }
+                  if (hours > 24) {
+                    return '예상 시간은 24시간 이내로 입력해주세요';
                   }
                   return null;
                 },
@@ -613,7 +654,84 @@ class _CreateTradeRequestDialogState extends State<CreateTradeRequestDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // 예상 총액 표시
+              if (_estimatedTotal != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFFFFF3E0),
+                        const Color(0xFFFFE0B2),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFFF6B35),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF6B35).withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calculate_outlined,
+                            color: const Color(0xFFFF6B35),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '예상 총액',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _formatPrice(_estimatedTotal!),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFFF6B35),
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_priceController.text}원/시간 × ${_hoursController.text}시간',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_estimatedTotal != null) const SizedBox(height: 20),
+              if (_estimatedTotal == null) const SizedBox(height: 4),
 
               // 버튼들
               Row(
