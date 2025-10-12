@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import '../services/user_service.dart';
 import '../services/wallet_service.dart';
 import '../models/user_model.dart';
-import 'edit_profile_screen.dart';
 import 'login_screen.dart';
 import 'chat_list_screen.dart'; // ✅ 새로 만든 대화 목록 화면 import
 import 'trade_history_screen.dart'; // ✅ 거래내역 화면 import
@@ -78,25 +77,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = _user!;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('마이페이지'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditProfileScreen(user),
-                ),
-              );
-              if (result == true) {
-                _fetchUserInfo();
-              }
-            },
-          ),
-        ],
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(

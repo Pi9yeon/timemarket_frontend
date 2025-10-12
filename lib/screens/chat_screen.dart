@@ -408,7 +408,7 @@ class _ChatScreenState extends State<ChatScreen> {
       // 메시지 추가
       if (_messages.isNotEmpty) {
         for (final message in _messages) {
-          if (message != null && message['timestamp'] != null) {
+          if (message['timestamp'] != null) {
             try {
               allItems.add({
                 'type': 'message',

@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import '../services/time_post_service.dart';
-import 'create_post_screen.dart';
 import 'post_detail_screen.dart';
 import '../models/post_model.dart';
 
@@ -67,48 +66,6 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        title: const Text(
-          '시간 거래',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-            fontSize: 18,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black54),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: carrotOrange,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              onPressed: () async {
-                final created = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-                );
-                if (created == true) _loadPosts();
-              },
-            ),
-          ),
-        ],
-      ),
       body: Column(
         children: [
           // 당근마켓 스타일의 필터 탭
