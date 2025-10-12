@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import 'signup_screen.dart';
 import 'main_screen.dart';
@@ -14,7 +15,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 // _LoginScreenState 클래스는 LoginScreen의 실제 상태를 관리합니다.
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   // 사용자의 입력값을 저장하고 관리하는 컨트롤러들입니다.
   // TextField에 연결되어 사용자가 입력한 텍스트를 가져올 수 있습니다.
   final _usernameController = TextEditingController();
@@ -24,11 +25,42 @@ class _LoginScreenState extends State<LoginScreen> {
   // 인증(로그인, 회원가입)과 관련된 API 통신을 담당하는 서비스 클래스입니다.
   // 백엔드와의 통신을 처리합니다.
   final AuthService _authService = AuthService();
+  
+  // 애니메이션 컨트롤러
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  
+  // 당근마켓 스타일의 컬러 테마
+  static const Color carrotOrange = Color(0xFFFF6F00);
+  static const Color carrotLightOrange = Color(0xFFFFE0B2);
+  static const Color carrotDarkOrange = Color(0xFFE65100);
+  
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+    
+    _animationController.forward();
+  }
 
   // 화면이 사라질 때 사용했던 컨트롤러들을 메모리에서 해제하여
   // 불필요한 자원 낭비를 막는 중요한 역할을 합니다.
   @override
   void dispose() {
+    _animationController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -74,69 +106,185 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Scaffold는 앱의 기본 구조(앱 바, 본문 등)를 제공하는 위젯입니다.
     return Scaffold(
-      // body에 SingleChildScrollView를 사용하면 화면 내용이 길어져도 스크롤이 가능해집니다.
-      // 키보드가 올라와도 화면 요소가 가려지지 않게 하는 중요한 역할을 합니다.
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            // 자식 위젯들을 세로 방향으로 배치하는 위젯입니다.
-            mainAxisAlignment: MainAxisAlignment.center, // 세로축 중앙 정렬
-            crossAxisAlignment: CrossAxisAlignment.stretch, // 가로축을 화면 전체에 펼칩니다.
-            children: [
-              const SizedBox(height: 80.0), // 상단에 여백을 줍니다.
-              // 프로젝트 로고나 이름 텍스트를 표시합니다.
-              //
-              const Text(
-                'TimeMarket',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blueAccent,
+      backgroundColor: Colors.white,
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 60.0),
+                      // 로고 섹션
+                      _buildLogoSection(),
+                      const SizedBox(height: 60.0),
+                      // 로그인 폼 카드
+                      _buildLoginCard(),
+                      const SizedBox(height: 24.0),
+                      // 회원가입 버튼
+                      _buildSignupSection(),
+                      const SizedBox(height: 40.0),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 10.0),
-              // 프로젝트 슬로건을 표시합니다.
-              const Text(
-                '시간을 나누고 가치를 교환하는 곳',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 50.0),
-              // 사용자 이름 입력 필드
-              _buildTextField(
-                controller: _usernameController,
-                labelText: '사용자 이름',
-                icon: Icons.person,
-              ),
-              const SizedBox(height: 16.0), // 입력 필드 간의 여백
-              // 이메일 입력 필드
-              _buildTextField(
-                controller: _emailController,
-                labelText: '이메일',
-                icon: Icons.email,
-              ),
-              const SizedBox(height: 16.0), // 입력 필드 간의 여백
-              // 비밀번호 입력 필드
-              _buildTextField(
-                controller: _passwordController,
-                labelText: '비밀번호',
-                icon: Icons.lock,
-                isObscure: true, // 비밀번호 숨김 처리를 합니다.
-              ),
-              const SizedBox(height: 24.0), // 버튼 위에 여백을 줍니다.
-              // 로그인 버튼
-              _buildLoginButton(),
-              const SizedBox(height: 16.0), // 버튼 간의 여백
-              // 회원가입 버튼
-              _buildSignupButton(context),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+  
+  Widget _buildLogoSection() {
+    return Column(
+      children: [
+        // 로고 컨테이너
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [carrotOrange, carrotDarkOrange],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: carrotOrange.withOpacity(0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.access_time_rounded,
+            size: 50,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 24),
+        // 앱 이름
+        const Text(
+          'TimeMarket',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.w800,
+            color: Colors.black87,
+            letterSpacing: -1,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // 슬로건
+        Text(
+          '시간을 나누고 가치를 교환하는 곳',
+          style: TextStyle(
+            fontSize: 15,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildLoginCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+      ),
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '로그인',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 24),
+          // 사용자 이름 입력 필드
+          _buildTextField(
+            controller: _usernameController,
+            labelText: '사용자 이름',
+            icon: Icons.person_outline,
+          ),
+          const SizedBox(height: 16.0),
+          // 이메일 입력 필드
+          _buildTextField(
+            controller: _emailController,
+            labelText: '이메일',
+            icon: Icons.email_outlined,
+          ),
+          const SizedBox(height: 16.0),
+          // 비밀번호 입력 필드
+          _buildTextField(
+            controller: _passwordController,
+            labelText: '비밀번호',
+            icon: Icons.lock_outline,
+            isObscure: true,
+          ),
+          const SizedBox(height: 28.0),
+          // 로그인 버튼
+          _buildLoginButton(),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSignupSection() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '계정이 없으신가요?',
+          style: TextStyle(
+            fontSize: 15,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SignupScreen()),
+            );
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: carrotOrange,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+          child: const Text(
+            '회원가입',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -148,71 +296,96 @@ class _LoginScreenState extends State<LoginScreen> {
     required IconData icon,
     bool isObscure = false,
   }) {
-    return TextField(
-      controller: controller,
-      obscureText: isObscure,
-      decoration: InputDecoration(
-        labelText: labelText, // 입력 필드 위에 표시되는 힌트 텍스트
-        prefixIcon: Icon(icon, color: Colors.blueAccent), // 텍스트 앞에 표시되는 아이콘
-        border: OutlineInputBorder(
-          // 테두리 디자인 설정
-          borderRadius: BorderRadius.circular(12.0), // 모서리를 둥글게 만듭니다.
-          borderSide: const BorderSide(color: Colors.blueAccent),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isObscure,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
         ),
-        enabledBorder: OutlineInputBorder(
-          // 입력 필드가 활성화되지 않았을 때의 테두리
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: const BorderSide(color: Colors.grey),
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: carrotOrange,
+            size: 22,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.0),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.0),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.0),
+            borderSide: const BorderSide(color: carrotOrange, width: 2.0),
+          ),
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          // 입력 필드에 커서가 있을 때의 테두리
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2.0),
-        ),
-        filled: true, // 배경색을 채울지 여부
-        fillColor: Colors.grey[50], // 배경색
       ),
     );
   }
 
   // 로그인 버튼을 만드는 커스텀 위젯입니다.
   Widget _buildLoginButton() {
-    return ElevatedButton(
-      onPressed: _login, // 버튼 클릭 시 _login 함수 실행
-      style: ElevatedButton.styleFrom(
-        foregroundColor: Colors.white, // 버튼 텍스트 색상
-        backgroundColor: Colors.blueAccent, // 버튼 배경색
-        shape: RoundedRectangleBorder(
-          // 버튼 모양 설정
-          borderRadius: BorderRadius.circular(12.0),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [carrotOrange, carrotDarkOrange],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
-        padding: const EdgeInsets.symmetric(vertical: 16.0), // 버튼 내부 여백
+        borderRadius: BorderRadius.circular(16.0),
+        boxShadow: [
+          BoxShadow(
+            color: carrotOrange.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: const Text(
-        '로그인',
-        style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  // 회원가입 버튼을 만드는 커스텀 위젯입니다.
-  Widget _buildSignupButton(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        // 회원가입 버튼 클릭 시 SignupScreen 화면으로 이동합니다.
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SignupScreen()),
-        );
-      },
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.blueAccent, // 버튼 텍스트 색상
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
+      child: ElevatedButton(
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          _login();
+        },
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 18.0),
+          elevation: 0,
         ),
-        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        child: const Text(
+          '로그인',
+          style: TextStyle(
+            fontSize: 17.0,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
       ),
-      child: const Text('회원가입', style: TextStyle(fontSize: 16.0)),
     );
   }
 }

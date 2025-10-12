@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 
@@ -16,7 +17,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 // SignupScreen의 상태를 관리하는 State 클래스입니다.
-class _SignupScreenState extends State<SignupScreen> {
+class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderStateMixin {
   // 사용자의 입력값을 관리하는 컨트롤러들입니다.
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -26,10 +27,41 @@ class _SignupScreenState extends State<SignupScreen> {
   // 사용자가 선택한 프로필 이미지를 저장하는 변수입니다.
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
+  
+  // 애니메이션 컨트롤러
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  
+  // 당근마켓 스타일의 컬러 테마
+  static const Color carrotOrange = Color(0xFFFF6F00);
+  static const Color carrotLightOrange = Color(0xFFFFE0B2);
+  static const Color carrotDarkOrange = Color(0xFFE65100);
+  
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+    
+    _animationController.forward();
+  }
 
   // 화면이 사라질 때 컨트롤러들을 메모리에서 해제하여 메모리 누수를 방지합니다.
   @override
   void dispose() {
+    _animationController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -78,48 +110,121 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Scaffold는 앱의 기본 구조를 제공하는 위젯입니다.
     return Scaffold(
-      appBar: AppBar(title: const Text('회원가입')),
-      // SingleChildScrollView를 사용해 키보드가 올라와도 화면이 스크롤되게 합니다.
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, // 세로축 중앙 정렬
-            crossAxisAlignment: CrossAxisAlignment.stretch, // 가로축을 화면 전체에 펼침
-            children: [
-              const SizedBox(height: 50.0),
-              // 프로필 이미지를 선택하는 원형 아바타 위젯입니다.
-              _buildProfileImagePicker(),
-              const SizedBox(height: 24.0),
-              // 사용자 이름 입력 필드
-              _buildTextField(
-                controller: _usernameController,
-                labelText: '사용자 이름',
-                icon: Icons.person,
-              ),
-              const SizedBox(height: 16.0),
-              // 이메일 입력 필드
-              _buildTextField(
-                controller: _emailController,
-                labelText: '이메일',
-                icon: Icons.email,
-              ),
-              const SizedBox(height: 16.0),
-              // 비밀번호 입력 필드
-              _buildTextField(
-                controller: _passwordController,
-                labelText: '비밀번호',
-                icon: Icons.lock,
-                isObscure: true, // 비밀번호를 *로 표시
-              ),
-              const SizedBox(height: 24.0),
-              // 회원가입 버튼
-              _buildSignupButton(),
-            ],
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.arrow_back_ios_new,
+              color: Colors.black87,
+              size: 18,
+            ),
+          ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context);
+          },
+        ),
+        title: const Text(
+          '회원가입',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
           ),
         ),
+        centerTitle: false,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 20.0),
+                    // 프로필 이미지 섹션
+                    _buildProfileImagePicker(),
+                    const SizedBox(height: 40.0),
+                    // 회원가입 폼 카드
+                    _buildSignupCard(),
+                    const SizedBox(height: 40.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSignupCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+      ),
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '정보 입력',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 24),
+          // 사용자 이름 입력 필드
+          _buildTextField(
+            controller: _usernameController,
+            labelText: '사용자 이름',
+            icon: Icons.person_outline,
+          ),
+          const SizedBox(height: 16.0),
+          // 이메일 입력 필드
+          _buildTextField(
+            controller: _emailController,
+            labelText: '이메일',
+            icon: Icons.email_outlined,
+          ),
+          const SizedBox(height: 16.0),
+          // 비밀번호 입력 필드
+          _buildTextField(
+            controller: _passwordController,
+            labelText: '비밀번호',
+            icon: Icons.lock_outline,
+            isObscure: true,
+          ),
+          const SizedBox(height: 28.0),
+          // 회원가입 버튼
+          _buildSignupButton(),
+        ],
       ),
     );
   }
@@ -132,26 +237,50 @@ class _SignupScreenState extends State<SignupScreen> {
     required IconData icon,
     bool isObscure = false,
   }) {
-    return TextField(
-      controller: controller,
-      obscureText: isObscure,
-      decoration: InputDecoration(
-        labelText: labelText,
-        prefixIcon: Icon(icon, color: Colors.blueAccent),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: const BorderSide(color: Colors.blueAccent),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isObscure,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: const BorderSide(color: Colors.grey),
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: carrotOrange,
+            size: 22,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.0),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.0),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.0),
+            borderSide: const BorderSide(color: carrotOrange, width: 2.0),
+          ),
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2.0),
-        ),
-        filled: true,
-        fillColor: Colors.grey[50],
       ),
     );
   }
@@ -159,17 +288,80 @@ class _SignupScreenState extends State<SignupScreen> {
   // 프로필 이미지 선택 위젯입니다.
   // 원형 아바타를 누르면 갤러리가 열립니다.
   Widget _buildProfileImagePicker() {
-    return GestureDetector(
-      onTap: _pickImage,
-      child: CircleAvatar(
-        radius: 60,
-        backgroundColor: Colors.grey[200],
-        backgroundImage:
-            _profileImage != null ? FileImage(_profileImage!) : null,
-        child:
-            _profileImage == null
-                ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                : null,
+    return Center(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _pickImage();
+        },
+        child: Stack(
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey[100],
+                border: Border.all(
+                  color: carrotLightOrange,
+                  width: 3,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: carrotOrange.withOpacity(0.2),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+                image: _profileImage != null
+                    ? DecorationImage(
+                        image: FileImage(_profileImage!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: _profileImage == null
+                  ? Icon(
+                      Icons.person,
+                      size: 50,
+                      color: Colors.grey[400],
+                    )
+                  : null,
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [carrotOrange, carrotDarkOrange],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.camera_alt,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -177,19 +369,45 @@ class _SignupScreenState extends State<SignupScreen> {
   // 회원가입 버튼을 만드는 커스텀 위젯입니다.
   // 로그인 화면의 로그인 버튼과 동일한 디자인을 적용했습니다.
   Widget _buildSignupButton() {
-    return ElevatedButton(
-      onPressed: _signup,
-      style: ElevatedButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.blueAccent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [carrotOrange, carrotDarkOrange],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
-        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        borderRadius: BorderRadius.circular(16.0),
+        boxShadow: [
+          BoxShadow(
+            color: carrotOrange.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: const Text(
-        '회원가입',
-        style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+      child: ElevatedButton(
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          _signup();
+        },
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 18.0),
+          elevation: 0,
+        ),
+        child: const Text(
+          '회원가입',
+          style: TextStyle(
+            fontSize: 17.0,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
       ),
     );
   }
