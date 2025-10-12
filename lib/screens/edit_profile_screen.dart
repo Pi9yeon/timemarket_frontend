@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/user_service.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final UserService _userService = UserService();
+  final AuthService _authService = AuthService();
 
   // 기존 정보 표시를 위한 컨트롤러
   late TextEditingController _usernameController;
@@ -31,7 +33,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _usernameController = TextEditingController(text: widget.user.username);
-    _emailController = TextEditingController(text: widget.user.email);
+    _emailController = TextEditingController(text: widget.user.email ?? '');
     _currentPasswordController = TextEditingController();
     _newPasswordController = TextEditingController();
     _confirmPasswordController = TextEditingController();
@@ -81,7 +83,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
 
         // ✅ 비밀번호 변경 성공 시 로그아웃 및 로그인 화면으로 이동
-        await _userService.authService.logout();
+        await _authService.logout();
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,

@@ -1,16 +1,17 @@
 // lib/screens/profile_screen.dart
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/user_service.dart';
 import '../services/wallet_service.dart';
+import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'login_screen.dart';
 import 'chat_list_screen.dart';
 import 'trade_history_screen.dart';
 import 'wallet_screen.dart';
+import 'review_list_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,6 +23,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
   final WalletService _walletService = WalletService();
+  final AuthService _authService = AuthService();
   final _picker = ImagePicker();
   User? _user;
   double? _walletBalance;
@@ -55,32 +57,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickImageAndUpload() async {
     HapticFeedback.lightImpact();
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      File newImage = File(pickedFile.path);
-      bool success = await _userService.updateProfileImage(newImage);
+    
+    try {
+      print('🖼️ 이미지 선택 시작');
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80, // 이미지 품질 조정 (파일 크기 감소)
+      );
+      
+      if (pickedFile == null) {
+        print('⚠️ 이미지 선택이 취소되었습니다.');
+        return;
+      }
+      
+      print('✅ 이미지 선택 완료: ${pickedFile.path}');
+      
+      // 로딩 표시
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text("프로필 이미지 업로드 중..."),
+            ],
+          ),
+          backgroundColor: carrotOrange,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 30), // 업로드가 완료될 때까지 표시
+        ),
+      );
+      
+      // XFile을 직접 전달 (웹 환경 지원)
+      bool success = await _userService.updateProfileImage(pickedFile);
+      
+      // 이전 스낵바 제거
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      
       if (success) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text("프로필 이미지가 성공적으로 변경되었습니다."),
-            backgroundColor: carrotOrange,
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text("프로필 이미지가 성공적으로 변경되었습니다."),
+              ],
+            ),
+            backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
-        _fetchUserInfo();
+        // 사용자 정보 새로고침
+        await _fetchUserInfo();
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text("이미지 변경에 실패했습니다."),
+            content: const Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text("이미지 변경에 실패했습니다. 다시 시도해주세요."),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
+    } catch (e, stackTrace) {
+      print('❌ 이미지 선택/업로드 중 오류: $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("오류가 발생했습니다: $e"),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
@@ -228,21 +300,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // 이메일
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  user.email,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
+              // 이메일 (email이 null이 아닐 때만 표시)
+              if (user.email != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    user.email!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -284,9 +357,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: _buildStatCard(
                   icon: Icons.star_rounded,
                   label: "평점",
-                  value: user.rating.toStringAsFixed(1),
-                  unit: "/ 5.0",
+                  value: user.displayRating.toStringAsFixed(1),
+                  unit: user.ratingCount != null ? "(${user.ratingCount})" : "/ 5.0",
                   color: Colors.amber[700]!,
+                  onTap: () async {
+                    HapticFeedback.lightImpact();
+                    // 리뷰 목록 화면으로 이동
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ReviewListScreen(),
+                      ),
+                    );
+                    // 돌아왔을 때 프로필 새로고침
+                    _fetchUserInfo();
+                  },
                 ),
               ),
             ],
@@ -491,20 +576,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMenuItem(
             icon: Icons.rate_review_rounded,
             iconColor: Colors.blue[600]!,
-            title: "내가 쓴 리뷰",
-            subtitle: "작성한 리뷰 보기",
-            onTap: () {
+            title: "내 리뷰",
+            subtitle: "받은 리뷰 및 작성한 리뷰 보기",
+            onTap: () async {
               HapticFeedback.lightImpact();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('준비 중인 기능입니다'),
-                  backgroundColor: Colors.grey[700],
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ReviewListScreen()),
               );
+              // 돌아왔을 때 프로필 새로고침
+              _fetchUserInfo();
             },
           ),
         ],
@@ -633,7 +714,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
 
             if (confirmed == true) {
-              await _userService.authService.logout();
+              await _authService.logout();
               if (!mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,

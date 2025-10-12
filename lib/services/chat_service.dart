@@ -3,37 +3,24 @@
 import 'package:dio/dio.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/chat_room_model.dart';
-import 'auth_service.dart';
-
-const String _baseUrl = 'http://localhost:8000/api';
+import 'package:timemarket_frontend/services/api_client.dart';
 
 class ChatService {
-  final Dio _dio = Dio();
-  final String _wsBaseUrl = _baseUrl
+  final ApiClient _apiClient = ApiClient();
+  final String _wsBaseUrl = baseUrl
       .replaceFirst('http', 'ws')
       .replaceFirst('/api', '');
+      
+  Dio get _dio => _apiClient.dio;
       
   // 디버그용 URL 확인 메서드
   String get debugInfo => '''
 🔍 ChatService 연결 정보:
-- HTTP Base URL: $_baseUrl
+- HTTP Base URL: $baseUrl
 - WebSocket Base URL: $_wsBaseUrl
 - 예상 WebSocket URL 형식: $_wsBaseUrl/ws/chat/[roomId]/?token=[token]
   ''';
 
-  ChatService() {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          final token = await AuthService().getToken();
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-          return handler.next(options);
-        },
-      ),
-    );
-  }
 
   Future<Map<String, dynamic>?> createOrGetChatRoom(
     int postId,
@@ -41,7 +28,7 @@ class ChatService {
   ) async {
     try {
       final response = await _dio.post(
-        '$_baseUrl/chat/match/request/',
+        '/chat/match/request/',
         data: {'post_id': postId, 'receiver_id': receiverId},
       );
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -55,7 +42,7 @@ class ChatService {
 
   Future<List<ChatRoom>?> getMyChatRooms() async {
     try {
-      final response = await _dio.get('$_baseUrl/chat/match/my-chats/');
+      final response = await _dio.get('/chat/match/my-chats/');
       print('🔍 백엔드 채팅방 응답: ${response.data}'); // 디버그 출력
       
       if (response.data is List) {
@@ -91,7 +78,7 @@ class ChatService {
   Future<List<dynamic>?> getMessages(int roomId) async {
     try {
       final response = await _dio.get(
-        '$_baseUrl/chat/match/chat/$roomId/messages/',
+        '/chat/match/chat/$roomId/messages/',
       );
       return response.data;
     } on DioException catch (e) {
@@ -101,7 +88,7 @@ class ChatService {
   }
 
   Future<WebSocketChannel?> connect(int roomId) async {
-    final token = await AuthService().getToken();
+    final token = await _apiClient.getToken();
     if (token == null) {
       print('❌ 인증 토큰이 없어 채팅 서버에 연결할 수 없습니다.');
       return null;

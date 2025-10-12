@@ -4,33 +4,20 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/trade_model.dart';
-import 'auth_service.dart';
-
-const String _baseUrl = 'http://localhost:8000/api';
+import 'package:timemarket_frontend/services/api_client.dart';
 
 class TradeService {
-  final Dio _dio = Dio();
+  final ApiClient _apiClient = ApiClient();
+  
+  Dio get _dio => _apiClient.dio;
 
-  TradeService() {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          final token = await AuthService().getToken();
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-          return handler.next(options);
-        },
-      ),
-    );
-  }
 
   // 거래 요청 목록 조회 (특정 채팅방)
   Future<List<TradeRequest>?> getTradeRequests(int roomId) async {
     try {
-      print('🌐 API 호출: GET $_baseUrl/chat/match/chat/$roomId/trades/');
+      print('🌐 API 호출: GET $baseUrl/chat/match/chat/$roomId/trades/');
       final response = await _dio.get(
-        '$_baseUrl/chat/match/chat/$roomId/trades/',
+        '/chat/match/chat/$roomId/trades/',
       );
       
       print('📡 API 응답 상태: ${response.statusCode}');
@@ -73,7 +60,7 @@ class TradeService {
   Future<List<TradeRequest>?> getUserTradeHistory() async {
     try {
       final response = await _dio.get(
-        '$_baseUrl/trades/history/',
+        '/trades/history/',
       );
       
       if (response.data is List) {
@@ -92,7 +79,7 @@ class TradeService {
   Future<List<TradeRequest>?> getUserTradeHistoryByStatus(String status) async {
     try {
       final response = await _dio.get(
-        '$_baseUrl/trades/history/',
+        '/trades/history/',
         queryParameters: {'status': status},
       );
       
@@ -115,7 +102,7 @@ class TradeService {
   ) async {
     try {
       final response = await _dio.post(
-        '$_baseUrl/chat/match/chat/$roomId/trades/create/',
+        '/chat/match/chat/$roomId/trades/create/',
         data: {
           'proposed_price': request.proposedPrice,
           'proposed_hours': request.proposedHours,
@@ -136,7 +123,7 @@ class TradeService {
   Future<TradeRequest?> getTradeRequest(int tradeId) async {
     try {
       final response = await _dio.get(
-        '$_baseUrl/chat/match/trades/$tradeId/',
+        '/chat/match/trades/$tradeId/',
       );
       
       return TradeRequest.fromJson(response.data);
@@ -154,7 +141,7 @@ class TradeService {
   ) async {
     try {
       final response = await _dio.patch(
-        '$_baseUrl/chat/match/trades/$tradeId/',
+        '/chat/match/trades/$tradeId/',
         data: accept 
           ? {'requester_accepted': true}
           : {'receiver_accepted': false},

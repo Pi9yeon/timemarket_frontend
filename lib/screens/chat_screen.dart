@@ -460,11 +460,13 @@ class _ChatScreenState extends State<ChatScreen> {
         final message = item['data'] as Map<String, dynamic>;
         final isMe = message['sender'] != null && message['sender']['id'] == widget.currentUserId;
         final timestamp = item['timestamp'] as DateTime;
+        final profileImageUrl = message['sender']?['profile_image'] as String?;
         
         return _buildMessageBubble(
           isMe,
           message['message'] ?? '',
           timestamp,
+          profileImageUrl,
         );
       } else if (item['type'] == 'loading_trade') {
         return _buildTradeLoadingIndicator();
@@ -700,7 +702,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(bool isMe, String text, DateTime timestamp) {
+  Widget _buildMessageBubble(bool isMe, String text, DateTime timestamp, String? profileImageUrl) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: Row(
@@ -717,6 +719,27 @@ class _ChatScreenState extends State<ChatScreen> {
                   fontSize: 11,
                   color: Colors.grey[500],
                 ),
+              ),
+            ),
+          ],
+          
+          if (!isMe) ...[
+            // 상대방 프로필 이미지
+            Padding(
+              padding: const EdgeInsets.only(right: 6, bottom: 2),
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: profileImageUrl != null
+                    ? NetworkImage(profileImageUrl)
+                    : null,
+                child: profileImageUrl == null
+                    ? Icon(
+                        Icons.person,
+                        size: 16,
+                        color: Colors.grey[400],
+                      )
+                    : null,
               ),
             ),
           ],

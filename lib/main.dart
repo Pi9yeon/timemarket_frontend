@@ -7,6 +7,7 @@ import 'package:js/js.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
+import 'globals.dart';
 
 // JavaScript의 window 객체에 접근하기 위한 설정
 @JS()
@@ -49,6 +50,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey, // 전역 네비게이터 키 등록
       title: 'Time Market',
       theme: ThemeData(
         primarySwatch: Colors.blue,
