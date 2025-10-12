@@ -1,6 +1,7 @@
 // lib/screens/post_detail_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // ✅ google_maps_flutter 패키지 및 LatLng 클래스 임포트
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
@@ -25,6 +26,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _isChatButtonLoading = false;
   bool _isCurrentUserAuthor = false;
 
+  // 당근마켓 스타일의 컬러 테마
+  static const Color carrotOrange = Color(0xFFFF6F00);
+
   @override
   void initState() {
     super.initState();
@@ -40,13 +44,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  // ... (다른 함수들은 변경 없음) ...
   Color _getBadgeColor(String type) {
-    return type == 'sale' ? Colors.green : Colors.blue;
+    return type == 'sale' ? const Color(0xFF4A90E2) : const Color(0xFFFF8C00);
   }
 
   String _getBadgeText(String type) {
-    return type == 'sale' ? '판매' : '구인';
+    return type == 'sale' ? '판매' : '구매';
   }
 
   void _toggleFullscreen() {
@@ -69,107 +72,198 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     // ✅ latlong2 대신 google_maps_flutter의 LatLng를 사용
     final LatLng? postLocation = isLocationValid ? LatLng(lat, lng) : null;
 
-    // ... (Scaffold 및 나머지 build 메소드 구조는 거의 동일) ...
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('게시글 상세'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        title: const Text(
+          '게시글 상세',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
       bottomNavigationBar: _isCurrentUserAuthor ? null : _buildChatButton(),
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
+                // 제목 및 배지 카드
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getBadgeColor(widget.post.type).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _getBadgeColor(widget.post.type),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Text(
+                              _getBadgeText(widget.post.type),
+                              style: TextStyle(
+                                color: _getBadgeColor(widget.post.type),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
                         widget.post.title,
                         style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                          height: 1.3,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getBadgeColor(widget.post.type),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Text(
-                        _getBadgeText(widget.post.type),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoCard(
+                const SizedBox(height: 12),
+                // 정보 카드들
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(
                         icon: Icons.access_time_outlined,
                         label: '필요 시간',
                         value: '${widget.post.price} TC',
+                        iconColor: carrotOrange,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildInfoCard(
+                      const SizedBox(height: 16),
+                      Divider(color: Colors.grey[200], height: 1),
+                      const SizedBox(height: 16),
+                      _buildInfoRow(
                         icon: Icons.person_outline,
                         label: '작성자',
                         value: widget.post.author.username,
+                        iconColor: const Color(0xFF4A90E2),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildInfoCard(
-                        icon: Icons.date_range_outlined,
+                      const SizedBox(height: 16),
+                      Divider(color: Colors.grey[200], height: 1),
+                      const SizedBox(height: 16),
+                      _buildInfoRow(
+                        icon: Icons.calendar_today_outlined,
                         label: '작성일',
                         value: formattedDate,
+                        iconColor: Colors.grey[700]!,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _buildContentCard(widget.post.description),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 if (postLocation != null)
                   _buildLocationCard(postLocation, context)
                 else
                   _buildInvalidLocationCard(),
-                const SizedBox(height: 80),
+                const SizedBox(height: 100),
               ],
             ),
           ),
           if (_isMapFullscreen && postLocation != null)
             GestureDetector(
-              onTap: _toggleFullscreen,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _toggleFullscreen();
+              },
               child: Container(
-                color: Colors.black.withOpacity(0.8),
+                color: Colors.black.withValues(alpha: 0.85),
                 alignment: Alignment.center,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15.0),
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.9,
-                    height: MediaQuery.of(context).size.height * 0.8,
-                    child: _buildMapWidget(postLocation, true),
-                  ),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20.0),
+                        child: SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.92,
+                          height: MediaQuery.of(context).size.height * 0.8,
+                          child: _buildMapWidget(postLocation, true),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 50,
+                      right: 20,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            _toggleFullscreen();
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.black87,
+                              size: 28,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -178,51 +272,40 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // ... (_buildChatButton, _buildContentCard 등 다른 위젯 빌더는 변경 없음) ...
   Widget _buildChatButton() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.3),
-            spreadRadius: 2,
-            blurRadius: 5,
+            color: Colors.black.withValues(alpha: 0.05),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
-        child: ElevatedButton.icon(
-          icon:
-              _isChatButtonLoading
-                  ? Container(
-                    width: 24,
-                    height: 24,
-                    padding: const EdgeInsets.all(2.0),
-                    child: const CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 3,
-                    ),
-                  )
-                  : const Icon(Icons.chat_bubble_outline),
-          label: const Text('채팅하기'),
+        child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.white,
-            backgroundColor: Colors.blueAccent,
+            backgroundColor: carrotOrange,
             padding: const EdgeInsets.symmetric(vertical: 16.0),
             textStyle: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.0),
             ),
+            elevation: 0,
           ),
           onPressed:
               _isChatButtonLoading
                   ? null
                   : () async {
+                    HapticFeedback.lightImpact();
                     setState(() => _isChatButtonLoading = true);
 
                     final roomData = await _chatService.createOrGetChatRoom(
@@ -263,94 +346,169 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
                     setState(() => _isChatButtonLoading = false);
                   },
+          child: _isChatButtonLoading
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.chat_bubble_outline, size: 20),
+                    const SizedBox(width: 8),
+                    const Text('채팅하기'),
+                  ],
+                ),
         ),
       ),
     );
   }
 
   Widget _buildContentCard(String description) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
+              Icon(
+                Icons.description_outlined,
+                color: Colors.grey[700],
+                size: 20,
+              ),
+              const SizedBox(width: 8),
               const Text(
-                "내용",
+                "상세 내용",
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: const TextStyle(fontSize: 16, height: 1.5),
-              ),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.6,
+              color: Colors.grey[800],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildLocationCard(LatLng postLocation, BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              _buildInfoRow(
-                icon: Icons.location_on_outlined,
-                label: '위치',
-                value:
-                    '위도: ${postLocation.latitude.toStringAsFixed(4)}, 경도: ${postLocation.longitude.toStringAsFixed(4)}',
+              Icon(
+                Icons.location_on_outlined,
+                color: Colors.red[400],
+                size: 20,
               ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      height: 200,
-                      width: double.infinity,
-                      child: _buildMapWidget(postLocation, false),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.fullscreen,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black.withOpacity(0.6),
-                        padding: const EdgeInsets.all(4),
-                        minimumSize: Size.zero,
-                      ),
-                      onPressed: _toggleFullscreen,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 8),
+              const Text(
+                "위치 정보",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+          Text(
+            '위도: ${postLocation.latitude.toStringAsFixed(4)}, 경도: ${postLocation.longitude.toStringAsFixed(4)}',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: _buildMapWidget(postLocation, false),
+                ),
+              ),
+              Positioned(
+                bottom: 12,
+                right: 12,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _toggleFullscreen();
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.fullscreen,
+                        color: Colors.grey[800],
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -381,33 +539,26 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // ... (나머지 _buildInfoCard, _buildInfoRow, _buildInvalidLocationCard 함수는 변경 없음) ...
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: _buildInfoRow(icon: icon, label: label, value: value),
-        ),
-      ),
-    );
-  }
-
   Widget _buildInfoRow({
     required IconData icon,
     required String label,
     required String value,
+    Color? iconColor,
   }) {
     return Row(
       children: [
-        Icon(icon, color: Colors.blueAccent, size: 24),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: (iconColor ?? carrotOrange).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor ?? carrotOrange,
+            size: 20,
+          ),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -415,18 +566,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[600],
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
             ],
@@ -437,30 +589,46 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Widget _buildInvalidLocationCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: const SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Icon(Icons.location_off_outlined, color: Colors.red, size: 24),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '유효하지 않은 위치 정보입니다.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red,
-                  ),
-                ),
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-        ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.location_off_outlined,
+              color: Colors.red,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              '유효하지 않은 위치 정보입니다.',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.red,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
