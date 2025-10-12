@@ -1,6 +1,7 @@
 // lib/screens/wallet_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/wallet_service.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -12,9 +13,14 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   final WalletService _walletService = WalletService();
+  final TextEditingController _amountController = TextEditingController();
   double _balance = 0.0;
-  List<dynamic> _transactions = [];
   bool _isLoading = true;
+
+  // 당근마켓 스타일의 컬러 테마
+  static const Color carrotOrange = Color(0xFFFF6F00);
+  static const Color carrotLightOrange = Color(0xFFFFE0B2);
+  static const Color carrotDarkOrange = Color(0xFFE65100);
 
   @override
   void initState() {
@@ -22,19 +28,23 @@ class _WalletScreenState extends State<WalletScreen> {
     _fetchWalletData();
   }
 
-  // 지갑 잔액과 거래 내역을 가져오는 비동기 함수
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  // 지갑 잔액을 가져오는 비동기 함수
   Future<void> _fetchWalletData() async {
     setState(() {
       _isLoading = true;
     });
 
     final balanceData = await _walletService.getWalletBalance();
-    final transactionsData = await _walletService.getTransactions();
 
-    if (balanceData != null && transactionsData != null) {
+    if (balanceData != null) {
       setState(() {
-        _balance = balanceData['balance'] ?? 0.0;
-        _transactions = transactionsData;
+        _balance = double.tryParse(balanceData['balance'].toString()) ?? 0.0;
       });
     }
 
@@ -46,143 +56,345 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('나의 시간 지갑')),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                onRefresh: _fetchWalletData,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 지갑 잔액 표시
-                      _buildBalanceCard(),
-                      const SizedBox(height: 24.0),
-                      // 입금, 출금, 이체 버튼
-                      _buildActionButtons(),
-                      const SizedBox(height: 24.0),
-                      // 거래 내역 리스트
-                      const Text(
-                        '최근 거래 내역',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16.0),
-                      _buildTransactionList(),
-                    ],
-                  ),
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        title: const Text(
+          '시간 포인트',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(carrotOrange),
+              ),
+            )
+          : RefreshIndicator(
+              color: carrotOrange,
+              onRefresh: _fetchWalletData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    // 잔액 표시 영역
+                    _buildBalanceSection(),
+                    const SizedBox(height: 24),
+                    // 충전 UI 영역
+                    _buildDepositSection(),
+                  ],
                 ),
               ),
+            ),
     );
   }
 
-  // 잔액을 보여주는 카드 위젯
-  Widget _buildBalanceCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '총 보유 시간',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 8.0),
-            Text(
-              '${_balance.toStringAsFixed(2)} 시간',
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.blueAccent,
-              ),
-            ),
-          ],
-        ),
+  // 잔액을 보여주는 섹션
+  Widget _buildBalanceSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: const BoxDecoration(
+        color: Colors.white,
       ),
-    );
-  }
-
-  // 입금, 출금, 이체 버튼 위젯
-  Widget _buildActionButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _buildActionButton(Icons.add_circle_outline, '입금', () {
-          // TODO: 입금 팝업 또는 화면으로 이동하는 로직 구현
-          _walletService.deposit(1.0);
-        }),
-        _buildActionButton(Icons.remove_circle_outline, '출금', () {
-          // TODO: 출금 팝업 또는 화면으로 이동하는 로직 구현
-          _walletService.withdraw(1.0);
-        }),
-        _buildActionButton(Icons.swap_horiz, '이체', () {
-          // TODO: 이체 팝업 또는 화면으로 이동하는 로직 구현
-          _walletService.transfer('testuser', 1.0);
-        }),
-      ],
-    );
-  }
-
-  // 각 버튼에 대한 UI 위젯
-  Widget _buildActionButton(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
       child: Column(
         children: [
-          CircleAvatar(
-            backgroundColor: Colors.blueAccent.withOpacity(0.1),
-            radius: 30,
-            child: Icon(icon, color: Colors.blueAccent, size: 30),
+          Text(
+            '내 시간 포인트',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 14)),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                _balance.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  color: carrotOrange,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Time',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: carrotOrange,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  // 거래 내역 리스트 위젯
-  Widget _buildTransactionList() {
-    if (_transactions.isEmpty) {
-      return const Center(child: Text('거래 내역이 없습니다.'));
-    }
+  // 충전 UI 섹션
+  Widget _buildDepositSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '시간 포인트 충전',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // 빠른 충전 금액 버튼들
+          _buildQuickAmountButtons(),
+          
+          const SizedBox(height: 24),
+          
+          // 직접 입력 필드
+          _buildCustomAmountInput(),
+          
+          const SizedBox(height: 32),
+          
+          // 충전 버튼
+          _buildDepositButton(),
+          
+          const SizedBox(height: 16),
+          
+          // 안내 문구
+          _buildInfoText(),
+        ],
+      ),
+    );
+  }
 
-    return ListView.builder(
+  // 빠른 충전 금액 버튼들
+  Widget _buildQuickAmountButtons() {
+    final amounts = [1.0, 5.0, 10.0, 20.0, 50.0, 100.0];
+    
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _transactions.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 2.2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: amounts.length,
       itemBuilder: (context, index) {
-        final transaction = _transactions[index];
-        // 거래 유형에 따라 다른 아이콘과 색상 표시
-        final isDeposit = transaction['type'] == 'deposit';
-        final icon = isDeposit ? Icons.arrow_downward : Icons.arrow_upward;
-        final color = isDeposit ? Colors.green : Colors.red;
-
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 8.0),
-          elevation: 1,
-          child: ListTile(
-            leading: Icon(icon, color: color),
-            title: Text(
-              '${transaction['amount']} 시간',
-              style: TextStyle(fontWeight: FontWeight.bold, color: color),
-            ),
-            subtitle: Text(
-              '${transaction['description']}\n${transaction['timestamp']}',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            isThreeLine: true,
-          ),
-        );
+        final amount = amounts[index];
+        return _buildAmountButton(amount);
       },
+    );
+  }
+
+  // 개별 금액 버튼
+  Widget _buildAmountButton(double amount) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _amountController.text = amount.toStringAsFixed(1);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.grey[300]!,
+            width: 1.5,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            '+${amount.toStringAsFixed(0)} Time',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 직접 입력 필드
+  Widget _buildCustomAmountInput() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[300]!,
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: const InputDecoration(
+                hintText: '직접 입력',
+                hintStyle: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w400,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const Text(
+            'Time',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 충전 버튼
+  Widget _buildDepositButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: _handleDeposit,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: carrotOrange,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+        child: const Text(
+          '충전하기',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 안내 문구
+  Widget _buildInfoText() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: carrotLightOrange.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline,
+            size: 20,
+            color: carrotDarkOrange,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '시간 포인트는 TimeMarket에서 서비스를 거래할 때 사용됩니다.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 충전 처리 함수
+  Future<void> _handleDeposit() async {
+    final amountText = _amountController.text.trim();
+    
+    if (amountText.isEmpty) {
+      _showSnackBar('충전할 금액을 입력해주세요', isError: true);
+      return;
+    }
+
+    final amount = double.tryParse(amountText);
+    
+    if (amount == null || amount <= 0) {
+      _showSnackBar('올바른 금액을 입력해주세요', isError: true);
+      return;
+    }
+
+    // 로딩 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(carrotOrange),
+        ),
+      ),
+    );
+
+    // 충전 요청
+    final response = await _walletService.deposit(amount);
+
+    // 로딩 다이얼로그 닫기
+    if (!mounted) return;
+    Navigator.pop(context);
+
+    if (response) {
+      _showSnackBar('${amount.toStringAsFixed(1)} Time이 충전되었습니다');
+      _amountController.clear();
+      await _fetchWalletData();
+      
+      // 이전 화면으로 돌아갈 때 true 반환 (잔고 갱신 신호)
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } else {
+      _showSnackBar('충전에 실패했습니다. 다시 시도해주세요', isError: true);
+    }
+  }
+
+  // 스낵바 표시 함수
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red[400] : carrotOrange,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
     );
   }
 }

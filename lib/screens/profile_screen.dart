@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/user_service.dart';
+import '../services/wallet_service.dart';
 import '../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
 import 'chat_list_screen.dart'; // ✅ 새로 만든 대화 목록 화면 import
 import 'trade_history_screen.dart'; // ✅ 거래내역 화면 import
+import 'wallet_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,13 +21,16 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
+  final WalletService _walletService = WalletService();
   final _picker = ImagePicker();
   User? _user;
+  double? _walletBalance;
 
   @override
   void initState() {
     super.initState();
     _fetchUserInfo();
+    _fetchWalletBalance();
   }
 
   Future<void> _fetchUserInfo() async {
@@ -33,6 +38,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _user = user;
     });
+  }
+
+  Future<void> _fetchWalletBalance() async {
+    final balanceData = await _walletService.getWalletBalance();
+    if (balanceData != null) {
+      setState(() {
+        _walletBalance = double.tryParse(balanceData['balance'].toString());
+      });
+    }
   }
 
   Future<void> _pickImageAndUpload() async {
@@ -143,7 +157,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 16),
             _buildInfoCard(
               title: "시간 크레딧 잔고",
-              value: "${user.timeCredit.toStringAsFixed(1)} Time",
+              value: _walletBalance != null 
+                ? "${_walletBalance!.toStringAsFixed(1)} Time" 
+                : "로딩 중...",
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WalletScreen()),
+                );
+                if (result == true) {
+                  _fetchWalletBalance();
+                }
+              },
             ),
             const SizedBox(height: 16),
             _buildInfoCard(

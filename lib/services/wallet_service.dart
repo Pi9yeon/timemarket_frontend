@@ -33,7 +33,11 @@ class WalletService {
       final response = await _dio.get('$baseUrl/wallet/balance/');
       return response.data;
     } on DioException catch (e) {
-      print('지갑 잔액 조회 실패: ${e.message}');
+      // 개발 환경에서만 로깅
+      assert(() {
+        print('지갑 잔액 조회 실패: ${e.message}');
+        return true;
+      }());
       return null;
     }
   }
@@ -42,10 +46,15 @@ class WalletService {
   // API URL: /api/wallet/deposit/
   Future<bool> deposit(double amount) async {
     try {
-      await _dio.post('$baseUrl/wallet/deposit/', data: {'amount': amount});
+      await _dio.post('$baseUrl/wallet/deposit/', data: {'amount': amount.toString()});
       return true;
     } on DioException catch (e) {
-      print('입금 실패: ${e.message}');
+      // 개발 환경에서만 로깅
+      assert(() {
+        print('입금 실패: ${e.message}');
+        print('에러 응답: ${e.response?.data}');
+        return true;
+      }());
       return false;
     }
   }
@@ -57,7 +66,11 @@ class WalletService {
       await _dio.post('$baseUrl/wallet/withdraw/', data: {'amount': amount});
       return true;
     } on DioException catch (e) {
-      print('출금 실패: ${e.message}');
+      // 개발 환경에서만 로깅
+      assert(() {
+        print('출금 실패: ${e.message}');
+        return true;
+      }());
       return false;
     }
   }
@@ -72,7 +85,11 @@ class WalletService {
       );
       return true;
     } on DioException catch (e) {
-      print('이체 실패: ${e.message}');
+      // 개발 환경에서만 로깅
+      assert(() {
+        print('이체 실패: ${e.message}');
+        return true;
+      }());
       return false;
     }
   }
@@ -84,7 +101,11 @@ class WalletService {
       final response = await _dio.get('$baseUrl/wallet/transactions/');
       return response.data;
     } on DioException catch (e) {
-      print('거래 내역 조회 실패: ${e.message}');
+      // 개발 환경에서만 로깅
+      assert(() {
+        print('거래 내역 조회 실패: ${e.message}');
+        return true;
+      }());
       return null;
     }
   }
