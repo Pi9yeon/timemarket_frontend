@@ -3,8 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/trade_service.dart';
+import '../services/review_service.dart';
 import '../models/trade_model.dart';
 import '../services/user_service.dart';
+import 'create_review_screen.dart';
 
 class TradeHistoryScreen extends StatefulWidget {
   const TradeHistoryScreen({super.key});
@@ -17,6 +19,7 @@ class _TradeHistoryScreenState extends State<TradeHistoryScreen>
     with SingleTickerProviderStateMixin {
   final TradeService _tradeService = TradeService();
   final UserService _userService = UserService();
+  final ReviewService _reviewService = ReviewService();
   late TabController _tabController;
   
   List<TradeRequest> _allTrades = [];
@@ -338,6 +341,27 @@ class _TradeHistoryScreenState extends State<TradeHistoryScreen>
                   ),
                 ),
               ],
+              
+              // 리뷰 작성 버튼 (완료된 거래만)
+              if (trade.status == 'completed') ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _navigateToReviewScreen(trade),
+                    icon: const Icon(Icons.rate_review, size: 18),
+                    label: const Text('리뷰 작성하기'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -435,6 +459,46 @@ class _TradeHistoryScreenState extends State<TradeHistoryScreen>
       ),
       builder: (context) => _buildTradeDetailsSheet(trade),
     );
+  }
+  
+  /// 리뷰 작성 화면으로 이동
+  Future<void> _navigateToReviewScreen(TradeRequest trade) async {
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사용자 정보를 불러올 수 없습니다.')),
+      );
+      return;
+    }
+
+    // 중복 리뷰 체크
+    final hasReview = await _reviewService.hasReviewForTrade(
+      trade.id,
+      _currentUserId!,
+    );
+
+    if (hasReview) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이미 이 거래에 대한 리뷰를 작성하셨습니다.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    // 리뷰 작성 화면으로 이동
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateReviewScreen(trade: trade),
+      ),
+    );
+
+    // 리뷰 작성 성공 시 목록 새로고침
+    if (result == true) {
+      _loadTradeHistory();
+    }
   }
 
   Widget _buildTradeDetailsSheet(TradeRequest trade) {
