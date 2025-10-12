@@ -28,6 +28,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
     _loadChatRooms();
   }
 
+  // 화면이 다시 표시될 때마다 채팅 목록 새로고침
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 이미 한 번 로드된 경우에만 새로고침 (initState 중복 방지)
+    if (mounted && _chatRooms.isNotEmpty) {
+      _loadChatRooms();
+    }
+  }
+
   Future<void> _loadChatRooms() async {
     setState(() => _isLoading = true);
 

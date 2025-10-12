@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/time_post_service.dart';
 import '../models/post_model.dart';
-import 'create_post_screen.dart';
 import 'post_detail_screen.dart';
 
 class TimePostMapScreen extends StatefulWidget {
@@ -15,7 +14,7 @@ class TimePostMapScreen extends StatefulWidget {
   State<TimePostMapScreen> createState() => _TimePostMapScreenState();
 }
 
-class _TimePostMapScreenState extends State<TimePostMapScreen> {
+class _TimePostMapScreenState extends State<TimePostMapScreen> with AutomaticKeepAliveClientMixin {
   final TimePostService _postService = TimePostService();
   List<dynamic> _posts = [];
   bool _loading = true;
@@ -30,6 +29,9 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
   );
 
   @override
+  bool get wantKeepAlive => false; // 화면 재진입 시마다 새로고침
+
+  @override
   void initState() {
     super.initState();
     // 위젯이 완전히 빌드된 후에 데이터 로드
@@ -38,6 +40,15 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
         _loadNearbyPosts();
       }
     });
+  }
+
+  // 화면이 다시 표시될 때마다 데이터 새로고침
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (mounted && _posts.isNotEmpty) {
+      _loadNearbyPosts();
+    }
   }
 
   Future<void> _loadNearbyPosts() async {
@@ -61,21 +72,6 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
     }
   }
 
-  // ✅ 1. 글 작성 화면으로 이동하고, 돌아왔을 때 새로고침하는 함수
-  Future<void> _navigateAndRefresh() async {
-    // CreatePostScreen으로 이동하고, 결과가 돌아올 때까지 기다립니다.
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CreatePostScreen()),
-    );
-
-    // 만약 CreatePostScreen에서 true를 반환했다면 (성공적으로 글을 작성했다면)
-    if (result == true && mounted) {
-      // 게시물 데이터를 다시 불러옵니다.
-      _loadNearbyPosts();
-    }
-  }
-
   Set<Marker> _buildMarkers() {
     final Set<Marker> markers = {};
 
@@ -84,7 +80,6 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
         final lat = (post['latitude'] as num).toDouble();
         final lng = (post['longitude'] as num).toDouble();
         final title = post['title'] as String? ?? '제목 없음';
-        final description = post['description'] as String? ?? '';
         final price = post['price'] as int? ?? 0;
         final type = post['type'] as String? ?? 'sale';
         final String markerId = post['id']?.toString() ?? 'marker_${markers.length}';
@@ -154,6 +149,7 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAliveClientMixin 필수
     if (_loading) {
       return const Scaffold(
         body: Center(

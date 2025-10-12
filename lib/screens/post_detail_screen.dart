@@ -233,7 +233,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     final currentUser = await _userService.getMyInfo();
 
                     if (roomData != null && currentUser != null && mounted) {
-                      Navigator.push(
+                      // 채팅 화면으로 이동하고, 돌아왔을 때 true 반환
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder:
@@ -245,6 +246,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               ),
                         ),
                       );
+                      
+                      // 채팅방을 생성했으므로, PostDetailScreen을 닫으면서 true 반환
+                      // 이를 통해 이전 화면에서 필요한 경우 새로고침 가능
+                      if (mounted && result != null) {
+                        // 채팅 생성 성공을 알림
+                        Navigator.pop(context, true);
+                      }
                     } else {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

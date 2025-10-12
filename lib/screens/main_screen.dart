@@ -29,17 +29,24 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   static const Color carrotLightOrange = Color(0xFFFFE0B2);
   static const Color carrotDarkOrange = Color(0xFFE65100);
 
-  final List<Widget> _screens = [
-    const TimePostMapScreen(),
-    const TimePostListScreen(),
-    const ChatListScreen(),
-    ProfileScreen(),
-  ];
+  // 각 화면을 재생성하기 위한 Key
+  Key _mapScreenKey = UniqueKey();
+  Key _listScreenKey = UniqueKey();
+  Key _chatScreenKey = UniqueKey();
 
   @override
   void initState() {
     super.initState();
     _initializeApp();
+  }
+  
+  List<Widget> _buildScreens() {
+    return [
+      TimePostMapScreen(key: _mapScreenKey),
+      TimePostListScreen(key: _listScreenKey),
+      ChatListScreen(key: _chatScreenKey),
+      ProfileScreen(),
+    ];
   }
 
   Future<void> _initializeApp() async {
@@ -87,7 +94,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       appBar: _buildAppBar(),
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: _buildScreens(),
       ),
       // 당근마켓 스타일의 하단 네비게이션 바
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -105,8 +112,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     ),
                   );
                   if (result == true) {
-                    // 게시글이 생성되면 목록 새로고침
-                    setState(() {});
+                    // 게시글이 생성되면 지도와 목록 화면 재생성
+                    setState(() {
+                      _mapScreenKey = UniqueKey();
+                      _listScreenKey = UniqueKey();
+                    });
                   }
                 },
                 backgroundColor: carrotOrange,
@@ -402,9 +412,41 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       child: GestureDetector(
         onTap: onTap ?? () {
           HapticFeedback.lightImpact();
-          setState(() {
-            _currentIndex = index;
-          });
+          
+          // 같은 탭을 다시 누르면 해당 화면 새로고침
+          if (_currentIndex == index) {
+            setState(() {
+              // 해당 화면의 Key를 변경하여 위젯 재생성
+              switch (index) {
+                case 0: // 지도
+                  _mapScreenKey = UniqueKey();
+                  break;
+                case 1: // 목록
+                  _listScreenKey = UniqueKey();
+                  break;
+                case 2: // 채팅
+                  _chatScreenKey = UniqueKey();
+                  break;
+              }
+            });
+          } else {
+            // 다른 탭으로 전환하면서 해당 화면 새로고침
+            setState(() {
+              _currentIndex = index;
+              // 전환되는 화면의 Key를 변경하여 새로고침
+              switch (index) {
+                case 0: // 지도
+                  _mapScreenKey = UniqueKey();
+                  break;
+                case 1: // 목록
+                  _listScreenKey = UniqueKey();
+                  break;
+                case 2: // 채팅
+                  _chatScreenKey = UniqueKey();
+                  break;
+              }
+            });
+          }
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
