@@ -535,6 +535,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Widget _buildAuthorRow() {
+    // 디버깅: 작성자 프로필 이미지 URL 확인
+    print('📸 [게시글 상세] 작성자 정보:');
+    print('   - 이름: ${widget.post.author.username}');
+    print('   - ID: ${widget.post.author.id}');
+    print('   - 프로필 이미지 URL: ${widget.post.author.profileImageUrl ?? "null"}');
+    
     return Row(
       children: [
         // 작성자 프로필 이미지

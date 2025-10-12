@@ -32,6 +32,12 @@ class User {
   // 백엔드 API 응답(JSON)을 User 모델 객체로 변환하는 팩토리 생성자입니다.
   // 이 함수는 백엔드에서 받은 JSON 데이터를 Dart 객체로 변환하는 역할을 합니다.
   factory User.fromJson(Map<String, dynamic> json) {
+    // 디버깅: User 모델 파싱 시 프로필 이미지 확인
+    final profileImage = json['profile_image'];
+    print('👤 [User.fromJson] 사용자 "${json['nickname']}" (ID: ${json['id']}) 파싱:');
+    print('   - profile_image 원본값: $profileImage');
+    print('   - profile_image 타입: ${profileImage.runtimeType}');
+    
     return User(
       id: json['id'],
       username: json['nickname'], // 백엔드 필드명 'nickname'을 'username'으로 매핑

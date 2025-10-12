@@ -25,6 +25,11 @@ class Post {
 
   factory Post.fromJson(Map<String, dynamic> json) {
     assert(json['user'] != null, "author 필드는 null일 수 없습니다");
+    
+    // 디버깅: 백엔드에서 받은 user 데이터 확인
+    print('📦 [Post.fromJson] 게시글 ID ${json['id']} 파싱:');
+    print('   - user 데이터: ${json['user']}');
+    print('   - profile_image 필드: ${json['user']['profile_image']}');
 
     return Post(
       id: json['id'],

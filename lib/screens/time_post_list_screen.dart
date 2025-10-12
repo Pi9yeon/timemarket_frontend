@@ -116,6 +116,15 @@ class _TimePostListScreenState extends State<TimePostListScreen> {
                 itemCount: _posts.length,
                 itemBuilder: (context, index) {
                   final postObj = _posts[index];
+                  
+                  // 디버깅: 게시글별 작성자 프로필 이미지 URL 확인
+                  if (index == 0) {
+                    print('📸 [게시글 목록] 첫 번째 게시글 작성자 정보:');
+                    print('   - 게시글 ID: ${postObj.id}');
+                    print('   - 작성자 이름: ${postObj.author.username}');
+                    print('   - 작성자 ID: ${postObj.author.id}');
+                    print('   - 프로필 이미지 URL: ${postObj.author.profileImageUrl ?? "null"}');
+                  }
 
                   Color getBadgeColor(String type) {
                     return type == 'sale' ? carrotOrange : Colors.blue[600]!;
