@@ -2,28 +2,26 @@
 
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:timemarket_frontend/models/user_model.dart';
 import 'package:timemarket_frontend/services/user_service.dart';
-
-// ✅ Dio를 사용하므로 baseUrl과 Dio 인스턴스를 클래스 외부에서 관리합니다.
-const String baseUrl = 'http://localhost:8000/api';
+import 'package:timemarket_frontend/services/api_client.dart';
 
 class AuthService {
-  // ✅ Dio 인스턴스를 생성하여 API 통신에 사용합니다.
-  final Dio dio = Dio();
-  final _storage = const FlutterSecureStorage();
+  // ApiClient 싱글톤 인스턴스 사용
+  final ApiClient _apiClient = ApiClient();
+  
+  Dio get dio => _apiClient.dio;
 
   Future<bool> login(String username, String email, String password) async {
     try {
       final response = await dio.post(
-        '$baseUrl/auth/login/',
+        '/auth/login/',
         data: {'nickname': username, 'email': email, 'password': password},
       );
 
       if (response.statusCode == 200) {
         final token = response.data['access'];
-        await _storage.write(key: 'jwt', value: token);
+        await _apiClient.setToken(token);
         return true;
       }
     } catch (e) {
@@ -38,7 +36,6 @@ class AuthService {
     String password,
     File? profileImage,
   ) async {
-    var uri = Uri.parse('$baseUrl/auth/signup/');
     var formData = FormData.fromMap({
       'nickname': username,
       'email': email,
@@ -55,7 +52,7 @@ class AuthService {
     }
 
     try {
-      final response = await dio.postUri(uri, data: formData);
+      final response = await dio.post('/auth/signup/', data: formData);
       return response.statusCode == 201;
     } catch (e) {
       print('회원가입 실패: $e');
@@ -64,11 +61,11 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: 'jwt');
+    await _apiClient.deleteToken();
   }
 
   Future<String?> getToken() async {
-    return await _storage.read(key: 'jwt');
+    return await _apiClient.getToken();
   }
 
   // ✅ 1. getUser() 함수를 새로 추가합니다.

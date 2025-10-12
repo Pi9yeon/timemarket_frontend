@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/user_service.dart';
 import '../services/wallet_service.dart';
+import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'login_screen.dart';
 import 'chat_list_screen.dart';
@@ -22,6 +23,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
   final WalletService _walletService = WalletService();
+  final AuthService _authService = AuthService();
   final _picker = ImagePicker();
   User? _user;
   double? _walletBalance;
@@ -633,7 +635,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
 
             if (confirmed == true) {
-              await _userService.authService.logout();
+              await _authService.logout();
               if (!mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
