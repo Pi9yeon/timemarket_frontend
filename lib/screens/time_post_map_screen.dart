@@ -18,7 +18,7 @@ class _TimePostMapScreenState extends State<TimePostMapScreen> with AutomaticKee
   final TimePostService _postService = TimePostService();
   List<dynamic> _posts = [];
   bool _loading = true;
-  final String _postType = 'sale';
+  final String? _postType = null; // null로 설정하여 모든 타입(판매, 구인) 표시
 
   final Completer<GoogleMapController> _controller =
       Completer<GoogleMapController>();
