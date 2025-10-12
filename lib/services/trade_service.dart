@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/trade_model.dart';
-import 'api_client.dart';
+import 'package:timemarket_frontend/services/api_client.dart';
 
 class TradeService {
   final ApiClient _apiClient = ApiClient();

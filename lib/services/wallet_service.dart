@@ -1,7 +1,7 @@
 // lib/services/wallet_service.dart
 
 import 'package:dio/dio.dart';
-import 'api_client.dart';
+import 'package:timemarket_frontend/services/api_client.dart';
 
 class WalletService {
   final ApiClient _apiClient = ApiClient();

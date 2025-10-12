@@ -3,7 +3,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
-import '../main.dart';
+import '../globals.dart';
 import '../screens/login_screen.dart';
 
 const String baseUrl = 'http://localhost:8000/api';

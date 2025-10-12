@@ -3,7 +3,7 @@
 import 'package:dio/dio.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/chat_room_model.dart';
-import 'api_client.dart';
+import 'package:timemarket_frontend/services/api_client.dart';
 
 class ChatService {
   final ApiClient _apiClient = ApiClient();

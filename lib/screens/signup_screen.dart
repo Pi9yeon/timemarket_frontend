@@ -1,6 +1,6 @@
 // lib/screens/signup_screen.dart
 
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,7 +25,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   final AuthService _authService = AuthService();
 
   // 사용자가 선택한 프로필 이미지를 저장하는 변수입니다.
-  File? _profileImage;
+  XFile? _profileImage;
+  Uint8List? _profileImageBytes; // 웹 환경에서 미리보기용
   final ImagePicker _picker = ImagePicker();
   
   // 애니메이션 컨트롤러
@@ -70,39 +71,138 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
 
   // 갤러리에서 프로필 이미지를 선택하는 비동기 함수입니다.
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      // 이미지가 선택되면 화면을 다시 그려 이미지를 표시합니다.
-      setState(() {
-        _profileImage = File(pickedFile.path);
-      });
+    try {
+      print('🖼️ 회원가입 - 이미지 선택 시작');
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80, // 이미지 품질 조정
+      );
+      
+      if (pickedFile != null) {
+        print('✅ 이미지 선택 완료: ${pickedFile.name}');
+        
+        // 이미지 바이트 읽기 (웹/모바일 모두 지원)
+        final bytes = await pickedFile.readAsBytes();
+        print('✅ 이미지 바이트 읽기 완료: ${bytes.length} bytes');
+        
+        // 이미지가 선택되면 화면을 다시 그려 이미지를 표시합니다.
+        setState(() {
+          _profileImage = pickedFile;
+          _profileImageBytes = bytes; // 웹 환경에서 미리보기용
+        });
+        print('✅ setState 완료 - 미리보기 업데이트');
+      } else {
+        print('⚠️ 이미지 선택이 취소되었습니다');
+      }
+    } catch (e, stackTrace) {
+      print('❌ 이미지 선택 중 오류: $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('이미지 선택 중 오류가 발생했습니다: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   // 회원가입 버튼을 눌렀을 때 실행되는 비동기 함수입니다.
   Future<void> _signup() async {
+    // 입력값 검증
+    if (_usernameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("모든 필드를 입력해주세요."),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    print('📝 회원가입 시작');
+    print('   - 사용자명: ${_usernameController.text}');
+    print('   - 이메일: ${_emailController.text}');
+    print('   - 프로필 이미지: ${_profileImage?.path ?? "없음"}');
+
+    // 로딩 표시
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text("회원가입 처리 중..."),
+          ],
+        ),
+        backgroundColor: carrotOrange,
+        duration: Duration(seconds: 30),
+      ),
+    );
+
     // AuthService를 통해 백엔드에 회원가입 요청을 보냅니다.
     final success = await _authService.signup(
-      _usernameController.text,
-      _emailController.text,
+      _usernameController.text.trim(),
+      _emailController.text.trim(),
       _passwordController.text,
       _profileImage,
     );
 
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+
     // 회원가입 성공 시
     if (success) {
+      print('✅ 회원가입 성공');
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text("회원가입이 완료되었습니다!"),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
       // 이전 화면(로그인 화면)으로 돌아갑니다.
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
       Navigator.pop(context);
     }
     // 회원가입 실패 시
     else {
+      print('❌ 회원가입 실패');
       if (!mounted) return;
       // 사용자에게 실패 메시지를 알리는 SnackBar를 띄웁니다.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("회원가입 실패: 정보를 다시 확인해주세요."),
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text("회원가입 실패: 정보를 다시 확인해주세요."),
+              ),
+            ],
+          ),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
         ),
       );
     }
@@ -313,9 +413,10 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                     offset: const Offset(0, 5),
                   ),
                 ],
-                image: _profileImage != null
+                // 웹과 모바일 모두 지원하는 이미지 표시
+                image: _profileImageBytes != null
                     ? DecorationImage(
-                        image: FileImage(_profileImage!),
+                        image: MemoryImage(_profileImageBytes!),
                         fit: BoxFit.cover,
                       )
                     : null,

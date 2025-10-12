@@ -7,9 +7,7 @@ import 'package:js/js.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
-
-// 전역 네비게이터 키 - 어디서든 네비게이션 가능
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+import 'globals.dart';
 
 // JavaScript의 window 객체에 접근하기 위한 설정
 @JS()

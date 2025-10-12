@@ -180,12 +180,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       const SizedBox(height: 16),
                       Divider(color: Colors.grey[200], height: 1),
                       const SizedBox(height: 16),
-                      _buildInfoRow(
-                        icon: Icons.person_outline,
-                        label: '작성자',
-                        value: widget.post.author.username,
-                        iconColor: const Color(0xFF4A90E2),
-                      ),
+                      _buildAuthorRow(),
                       const SizedBox(height: 16),
                       Divider(color: Colors.grey[200], height: 1),
                       const SizedBox(height: 16),
@@ -536,6 +531,53 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       // 지도 하단의 Google 로고나 컨트롤 버튼 제거
       myLocationButtonEnabled: false,
       zoomControlsEnabled: false,
+    );
+  }
+
+  Widget _buildAuthorRow() {
+    return Row(
+      children: [
+        // 작성자 프로필 이미지
+        CircleAvatar(
+          radius: 24,
+          backgroundColor: Colors.grey[200],
+          backgroundImage: widget.post.author.profileImageUrl != null
+              ? NetworkImage(widget.post.author.profileImageUrl!)
+              : null,
+          child: widget.post.author.profileImageUrl == null
+              ? Icon(
+                  Icons.person,
+                  size: 24,
+                  color: Colors.grey[600],
+                )
+              : null,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '작성자',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.post.author.username,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

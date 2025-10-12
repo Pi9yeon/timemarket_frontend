@@ -1,6 +1,5 @@
 // lib/screens/profile_screen.dart
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -57,32 +56,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickImageAndUpload() async {
     HapticFeedback.lightImpact();
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      File newImage = File(pickedFile.path);
-      bool success = await _userService.updateProfileImage(newImage);
+    
+    try {
+      print('🖼️ 이미지 선택 시작');
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80, // 이미지 품질 조정 (파일 크기 감소)
+      );
+      
+      if (pickedFile == null) {
+        print('⚠️ 이미지 선택이 취소되었습니다.');
+        return;
+      }
+      
+      print('✅ 이미지 선택 완료: ${pickedFile.path}');
+      
+      // 로딩 표시
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text("프로필 이미지 업로드 중..."),
+            ],
+          ),
+          backgroundColor: carrotOrange,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 30), // 업로드가 완료될 때까지 표시
+        ),
+      );
+      
+      // XFile을 직접 전달 (웹 환경 지원)
+      bool success = await _userService.updateProfileImage(pickedFile);
+      
+      // 이전 스낵바 제거
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      
       if (success) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text("프로필 이미지가 성공적으로 변경되었습니다."),
-            backgroundColor: carrotOrange,
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text("프로필 이미지가 성공적으로 변경되었습니다."),
+              ],
+            ),
+            backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
-        _fetchUserInfo();
+        // 사용자 정보 새로고침
+        await _fetchUserInfo();
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text("이미지 변경에 실패했습니다."),
+            content: const Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text("이미지 변경에 실패했습니다. 다시 시도해주세요."),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
+    } catch (e, stackTrace) {
+      print('❌ 이미지 선택/업로드 중 오류: $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("오류가 발생했습니다: $e"),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 

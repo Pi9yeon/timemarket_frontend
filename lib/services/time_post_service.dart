@@ -1,7 +1,7 @@
 // lib/services/time_post_service.dart
 
 import 'package:dio/dio.dart';
-import 'api_client.dart';
+import 'package:timemarket_frontend/services/api_client.dart';
 
 class TimePostService {
   final ApiClient _apiClient = ApiClient();
